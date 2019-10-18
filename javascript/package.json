@@ -1,0 +1,19 @@
+{
+  "name": "gerrymandering",
+  "version": "0.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "ndarray": "^1.0.18",
+    "randomcolor": "^0.5.4",
+    "tsc-watch": "^2.4.0",
+    "tsify": "^4.0.1",
+    "typescript": "^3.5.3"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "start": "budo src/index.ts:bundle.js --live -- -p [ tsify ]"
+  },
+  "author": "",
+  "license": "ISC"
+}
