@@ -4,194 +4,167 @@ rand_color = randomcolor.RandomColor()
 import polygon
 import itertools
 from articulationPoints import articulationPoints
+import collections
+import numpy as np
+from copy import copy, deepcopy
+
+Map = collections.namedtuple('Map', ['name', 'age', 'DOB'])
 
 class Map:
     """ The map is static and knows nothing about partitions.
         It is a s set of connected tiles.
     """
-    def __init__(self, tiles, n_classes):
-        self.tiles = tiles
-        self.n_classes = n_classes
+    def __init__(self, tile_populations, tile_vertices, tile_neighbours, tile_boundaries):
+        self.n_tiles = len(tile_populations)
+        self.tile_populations = tile_populations
+        self.tile_vertices = tile_vertices
+        self.tile_neighbours = tile_neighbours
+        self.tile_boundaries = tile_boundaries
+        self.tile_centers = [ polygon.centroid(v) for v in tile_vertices ]
+        self.boundry_tiles = [ i for i in range(self.n_tiles) if self.tile_boundaries[i] ]
+
+    def areTilesNeighbours(self, tile_idx_1, tile_idx_2):
+        return any(x == tile_idx_2 for x in self.tile_neighbours[tile_idx_1])
 
     @classmethod
     def makeRandom(cls, n_tiles=100, n_classes=2, seed=None):
         from voronoi import smoothedRandomVoronoi
-        random.seed(seed)
-        cells = list(smoothedRandomVoronoi(n_tiles, 10))
-        tiles = []
+        # random.seed(seed)
+        cells = smoothedRandomVoronoi(n_tiles=n_tiles, steps=10)
 
-        """ Create a maptile for each cell.
-        """
-        for cell in cells:
-            tiles.append(
-                MapTile(
-                    edges=[],
-                    area=cell['volume'],
-                    vertices=cell['vertices'],
-                    populations=[ random.randint(0, 10) for _ in range(n_classes) ]
-                )
-            )
+        tile_vertices = [ c['vertices'] for c in cells ]
+        tile_neighbours = [[ e['adjacent_cell'] for e in c['faces'] if e['adjacent_cell'] >= 0] for c in cells ]
+        tile_boundaries = [ any( e['adjacent_cell'] < 0 for e in c['faces']) for c in cells ]
+        # tile_populations = np.random.randint(0, 10, size=(n_tiles, n_classes))
+        tile_populations = np.ones((n_tiles, n_classes))
 
-        """ Connect the edges.
-        """
-        for cell, tile in zip(cells, tiles):
-            for edge in cell['faces']:
-                neighbour = tiles[edge['adjacent_cell']] if edge['adjacent_cell'] >=0 else None
-                tile_edge = MapTileEdge(1, neighbour, edge['vertices'])
-                tile.edges.append(tile_edge)
-                assert len(tile.vertices) > max(edge['vertices'])
-
-        return Map(tiles, n_classes)
-
-class MapTile:
-    def __init__(self, vertices, area, edges, populations):
-        self.vertices = vertices
-        self.area = area
-        self.edges = edges
-        self.populations = populations
-        self.center = polygon.centroid(vertices)
-
-    def isBoundry(self):
-        return any(e.neighbour is None for e in self.edges)
-
-    def isNeighbour(self, other):
-        return any(e.neighbour is other for e in self.edges)
-
-    def neighbours(self, district=None):
-        """ Utility function for accessing neighbour tiles. """
-        for e in self.edges:
-            n = e.neighbour
-            if e.neighbour is None:
-                continue
-            if district and n not in district.tiles:
-                continue
-            yield e.neighbour
-
-class MapTileEdge:
-    def __init__(self, length, neighbour, vertices):
-        self.length = length
-        self.neighbour = neighbour
-        self.vertices = vertices
-
-class District:
-    """ The district is a set of tiles that is a contiguos area of a map.
-    """
-    def __init__(self, tiles=[]):
-        self.tiles = set()
-        self.frontier = set()
-        self.color = rand_color.generate(format_=('rgb', 'Array'))[0]
-
-        for t in tiles:
-            self.addTile(t)
-
-    def addTile(self, tile):
-        """ Incorporate a new tile and update the frontier
-        """
-        assert tile not in self.tiles
-        self.tiles.add(tile)
-
-        # New tiles must be on the frontier
-        self.frontier.add(tile)
-
-        # Check if any existing tiles are no longer on the district-fontier
-        for edge in tile.edges:
-            if edge.neighbour and edge.neighbour in self.frontier:
-                if not self._isFrontier(edge.neighbour):
-                    self.frontier.remove(edge.neighbour)
-
-    def loseTile(self, tile):
-        self.tiles.remove(tile)
-        for e in tile.edges:
-            if e.neighbour in self.tiles:
-                self.frontier.add(e.neighbour)
-
-    def _isFrontier(self, tile):
-        neighbours = (e.neighbour for e in tile.edges if e.neighbour is not None)
-        return any(n for n in neighbours if n not in self.tiles)
-
-    # def _isLeaf(self, tile):
-    #     return sum([ 1 for e in tile.edges if e.neighbour in self.tiles ]) == 1
-
-    def canLose(self):
-        ap = articulationPoints(self)
-        return self.tiles - set(ap)
-
-    # def removeTile(self, tile):
-    # def _calculateFrontier(self):
-    #     frontier = set()
-    #     for tile in self.tiles:
-    #         if any(e.neighbour not in self.tiles for e in tile.edges):
-    #             frontier.add(tile)
-    #     return frontier
-
-    def compactness(self):
-        area = 0
-        perimeter = 0
-        for tile in self.tiles:
-            area += tile.area
-            for edge in tile.edges:
-                if edge.neighbour not in self.tiles:
-                    perimeter += edge.length
-        return 4 * math.pi * area / (perimeter**2)
-
-    def lostVotes(self):
-        return 1
-        # self.winners = []
-
+        return Map(tile_populations, tile_vertices, tile_neighbours, tile_boundaries)
 
 class Partition:
-    """ Partition is a set of non-overlapping districts that cover a map.
-    """
-    def __init__(self, districts, map):
-        self.districts = districts
+    def __init__(self, map, n_districts, tile_districts, district_frontiers, colors):
         self.map = map
-        self.tile2district = dict()
+        self.n_districts = n_districts
+        self.tile_districts = tile_districts
+        self.district_frontiers = district_frontiers
+        self.district_colors = colors
+
+    def sameDistrictNeighbours(self, tile_idx):
+        """ Helper function. """
+        district = self.tile_districts[tile_idx]
+        for tile_idx_2 in self.map.tile_neighbours[tile_idx]:
+            if self.tile_districts[tile_idx_2] == district:
+                yield tile_idx_2
+
+    def otherDistrictNeighbours(self, tile_idx):
+        """ Helper function. """
+        district = self.tile_districts[tile_idx]
+        for tile_idx_2 in self.map.tile_neighbours[tile_idx]:
+            if self.tile_districts[tile_idx_2] != district:
+                yield tile_idx_2
+
+    def districtStats(self):
+        areas = np.zeros(self.n_districts)
+        perimeters = np.zeros(self.n_districts)
+
+        for t_i in range(self.map.n_tiles):
+            d_i = self.tile_districts[t_i]
+            perimeters[d_i] += sum(1 for _ in self.otherDistrictNeighbours(t_i))
+            areas[d_i] += 1
+
+        return 1 - areas.std()
+        # return 4 * math.pi * areas / (perimeters*perimeters)
 
     def evaluate(self):
-        compactness = max(d.compactness() for d in self.districts)
-        lost_votes = max(d.lostVotes() for d in self.districts)
-        return [ compactness, lost_votes ]
+        pass
+
+    def copy(self):
+        return Partition(
+            self.map,
+            self.n_districts,
+            self.tile_districts.copy(),
+            deepcopy(self.district_frontiers),
+            self.district_colors,
+        )
+
+    def cantLose(self, district_idx):
+        return articulationPoints(self, district_idx)
 
     def mutate(self):
-        district = random.choice(self.districts)
-        options = list(district.frontier.intersection(district.canLose()))
+        district = random.randint(0, self.n_districts-1)
+        cantLose = set(self.cantLose(district))
+        options = [ i for i in np.where(self.tile_districts == district)[0] \
+                    if i not in cantLose ]
         if len(options) == 0:
             return
-        to_lose = random.choice(options)
-        give_to = [ self.tile2district[n] for n in to_lose.neighbours() if self.tile2district[n] != district ]
-        if len(give_to):
-            district.loseTile(to_lose)
-            give_to = random.choice(give_to)
-            give_to.addTile(to_lose)
-            self.tile2district[to_lose] = give_to
+        tile_idx = random.choice(options)
+        swap_to = list(self.otherDistrictNeighbours(tile_idx))
+        if len(swap_to):
+            d_to = self.tile_districts[random.choice(swap_to)]
+            self.switchTile(tile_idx, d_to)
+
+    def switchTile(self, tile_idx, d_to):
+        d_from = self.tile_districts[tile_idx]
+        assert d_from != d_to
+        self.tile_districts[tile_idx] = d_to
+        if self.tileIsFrontier(tile_idx):
+            self.district_frontiers[d_to].add(tile_idx)
+        self.district_frontiers[d_from].remove(tile_idx)
+        for tile_idx_2 in self.map.tile_neighbours[tile_idx]:
+            district_2 = self.tile_districts[tile_idx_2]
+            # Remove from "disrict_to" frontier that may now be surroudned.
+            if district_2 == d_to:
+                if not self.tileIsFrontier(tile_idx_2):
+                    self.district_frontiers[d_to].remove(tile_idx_2)
+            # Add new tiles to the frontier from "district_from".
+            if district_2 == d_from:
+                self.district_frontiers[d_from].add(tile_idx_2)
+
+    def tileIsFrontier(self, tile_idx):
+        district = self.tile_districts[tile_idx]
+        for tile_idx_2 in self.map.tile_neighbours[tile_idx]:
+            if self.tile_districts[tile_idx_2] != district:
+                return True
+        return False
+
+    def _validate(self):
+        """ Debug method """
+        for tile_idx in range(self.map.n_tiles):
+            district_idx = self.tile_districts[tile_idx]
+            if self.tileIsFrontier(tile_idx):
+                assert tile_idx in self.district_frontiers[district_idx], \
+                       f'{tile_idx} is frontier but not in ${self.district_frontiers[district_idx]}'
+                for district_idx_2 in range(self.n_districts):
+                    if district_idx_2 != district_idx:
+                        assert tile_idx not in self.district_frontiers[district_idx_2]
+            else:
+                for district_idx_2 in range(self.n_districts):
+                    assert tile_idx not in self.district_frontiers[district_idx_2],\
+                    f'{tile_idx} is not frontier but in d_{district_idx}'
 
     @classmethod
     def makeRandom(cls, n_districts, map, seed=None):
         random.seed(seed)
-        frontier = [t for t in map.tiles if t.isBoundry()]
-        seeds = random.sample(frontier, n_districts)
-        districts = [ District( [ s ] ) for s in seeds ]
-        assigned = set(seeds)
-
-        p = Partition(districts, map)
-
-        for dist, tile in zip(districts, seeds):
-            p.tile2district[tile] = dist
-
-        district_iter = itertools.cycle(districts)
-        while len(assigned) < len(map.tiles):
-            rand_dist = next(district_iter)
-            rand_tile = random.sample(rand_dist.frontier, 1)[0]
-
-            options = [ e.neighbour for e in rand_tile.edges if e.neighbour is not None ]
-            options = [ t for t in options if t not in rand_dist.tiles and t not in assigned ]
-
-            if len(options):
-                tile = random.choice(options)
-                rand_dist.addTile(tile)
-                assigned.add(tile)
-                p.tile2district[tile] = rand_dist
-
+        seeds = random.sample(map.boundry_tiles, n_districts)
+        tile_districts = np.full(map.n_tiles, -1, dtype='i')
+        colors = np.random.randint(0, 255, size=(map.n_tiles+1, 3))
+        colors[-1] = [0, 0,0]
+        district_frontiers = [ set([ seed ]) for seed in seeds ]
+        for dist_idx, tile_idx in enumerate(seeds):
+            tile_districts[tile_idx] = dist_idx
+        empty_frontier = set()
+        for t1 in seeds:
+            for t2 in map.tile_neighbours[t1]:
+                if tile_districts[t2] == -1:
+                    empty_frontier.add(t2)
+        district_frontiers.append(empty_frontier)
+        p = Partition(map, n_districts, tile_districts, district_frontiers, colors)
+        while empty_frontier:
+            tile = next(iter(empty_frontier))
+            opts = [ t for t in map.tile_neighbours[tile] if tile_districts[t] >= 0 ]
+            dist_dst = tile_districts[random.choice(opts)]
+            # p._validate()
+            p.switchTile(tile, dist_dst)
+            # p._validate()
+        p.district_frontiers = district_frontiers[:-1] # Remove the 'empty' frontier.
         return p
-
 

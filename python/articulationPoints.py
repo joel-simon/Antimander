@@ -1,10 +1,10 @@
 from collections import defaultdict
 
-def articulationPoints(district):
+def articulationPoints(partition, district_idx):
     time = 0
-    n_tiles = len(district.tiles)
+    tiles = [ i for i, v in enumerate(partition.tile_districts) if v == district_idx ]
 
-    '''A recursive function that find articulation points
+    '''A recursive function that find aprticulation points
     using DFS traversal
     u --> The vertex to be visited next
     visited[] --> keeps tract of visited vertices
@@ -25,7 +25,7 @@ def articulationPoints(district):
         time += 1
 
         # Recur for all the vertices adjacent to this vertex
-        for v in u.neighbours(district=district):
+        for v in partition.sameDistrictNeighbours(u):
             # If v is not visited yet, then make it a child of u
             # in DFS tree and recur for it
             if visited[v] == False:
@@ -51,17 +51,17 @@ def articulationPoints(district):
             elif v != parent[u]:
                 low[u] = min(low[u], disc[v])
 
-    visited = { t: False for t in district.tiles }
-    disc = { t: float("Inf") for t in district.tiles }
-    low = { t: float("Inf") for t in district.tiles }
-    parent = { t: -1 for t in district.tiles }
-    ap = { t: False for t in district.tiles } # To store articulation points.
+    visited = { t: False for t in tiles }
+    disc = { t: float("Inf") for t in tiles }
+    low = { t: float("Inf") for t in tiles }
+    parent = { t: -1 for t in tiles }
+    ap = { t: False for t in tiles } # To store articulation points.
 
     # Call the recursive helper function
     # to find articulation points
     # in DFS tree rooted with vertex 'i'
-    for t in district.tiles:
+    for t in tiles:
         if not visited[ t ]:
             APUtil(t, visited, ap, parent, low, disc)
 
-    return [t for t, is_ap in ap.items() if is_ap]
+    return [ t for t, is_ap in ap.items() if is_ap ]
