@@ -1,17 +1,13 @@
-import sys
+import sys, random
 import pygame
 from pygame import gfxdraw
-from Map import Map, Partition
-import polygon
-import random
-from articulationPoints import articulationPoints
-import copy
+
+from map import Map
+from partition import Partition
 
 m = Map.makeRandom(100, seed=0)
 p = Partition.makeRandom(5, m, seed=None)
-# exit()
 
-# print(articulationPoints(p.districts[0]))
 pygame.init()
 screen = pygame.display.set_mode((600, 600))
 screen.fill((255, 255, 255))
@@ -66,11 +62,11 @@ def draw_partition(partition):
 
 # draw_map(m)
 draw_partition(p)
-print(p.districtStats().mean())
+print(p.evaluate()[0])
 while True:
     p2 = p.copy()
     p2.mutate()
-    if p2.districtStats().mean() > p.districtStats().mean():
+    if p2.evaluate()[0] > p.evaluate()[0]:
         p = p2
         print('better')
         draw_partition(p)

@@ -1,6 +1,9 @@
 from random import random
-import polygon
+
 import pyvoro
+
+from utils import polygon
+
 
 def smoothedRandomVoronoi(n_tiles, steps):
     seeds = [[random(), random()] for _ in range(n_tiles)]
