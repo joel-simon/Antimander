@@ -1,10 +1,9 @@
 {
-  "name": "gerrymandering",
+  "name": "gerrymandering-viewer",
   "version": "0.0.0",
   "description": "",
   "main": "index.js",
   "dependencies": {
-    "ndarray": "^1.0.18",
     "randomcolor": "^0.5.4",
     "tsc-watch": "^2.4.0",
     "tsify": "^4.0.1",

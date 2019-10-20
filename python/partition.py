@@ -35,7 +35,8 @@ class Partition:
 
         concavity = 4 * math.pi * areas / (perimeters*perimeters)
         equality = 1 - areas.std()
-        return [ concavity.mean(), equality.mean() ]
+        # return concavity, equ
+        return [ concavity.min(), equality ]
 
     def copy(self):
         return Partition(

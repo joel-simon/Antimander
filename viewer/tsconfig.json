@@ -1,0 +1,9 @@
+{
+    "strict": true,
+    "types": true,
+    "incremental": false,
+    "compilerOptions": {
+        "target": "es2017"
+    },
+    "lib": [ "es2017" ]
+}

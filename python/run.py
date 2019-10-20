@@ -10,6 +10,14 @@ plt.ion()
 
 m = Map.makeRandom(100, seed=0)
 
+n_districts = 5
+nsga_config = {
+    'maximize': True,
+    'pop_size':  200,
+    'n_objectives': 2,
+    'max_gen':  100
+}
+
 def seed():
     return Partition.makeRandom(5, m, seed=None)
 
@@ -36,12 +44,7 @@ def copy(p):
     return p.copy()
 
 solutions, values = run(
-    config={
-        'maximize': True,
-        'pop_size':  300,
-        'n_objectives': 2,
-        'max_gen':  200
-    },
+    config=nsga_config,
     seed=seed,
     crossover=crossover,
     evaluate=evaluate,
@@ -49,7 +52,15 @@ solutions, values = run(
     copy=copy
 )
 
-np.save('out/values.npy', np.array(values))
-np.save('out/solutions.npy', np.array([s.tile_districts for s in solutions]))
-with open('out/map.json', 'w') as f:
-    json.dump(m.toJSON(), f)
+# np.save('out/values.npy', np.array(values))
+# np.save('out/solutions.npy', np.array([s.tile_districts for s in solutions]))
+# with open('out/values.json', 'w') as f:
+
+with open('out/rundata.json', 'w') as f:
+    json.dump({
+        'n_districts': n_districts,
+        'nsga_config': nsga_config,
+        'map': m.toJSON(),
+        'values': np.array(values).tolist(),
+        'solutions': [ s.tile_districts.tolist() for s in solutions ]
+    }, f)
