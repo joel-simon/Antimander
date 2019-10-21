@@ -11,9 +11,19 @@
         body {
             text-align: center;
         }
+        canvas {
+            float: left;
+        }
+        #pareto_container {
+            width: 40vw;
+            position: relative;
+        }
     </style>
 </head>
 <body>
-    <canvas id="c" width=600px height=600px/>
+    <div id=pareto_container>
+        <canvas id="pareto_front" width=400px height=400px></canvas>
+    </div>
+    <canvas id="partition" width=400px height=400px/></canvas>
 </body>
 

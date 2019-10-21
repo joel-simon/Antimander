@@ -1,15 +1,14 @@
 import * as randomColor from 'randomColor'
+import { make_chart } from './pareto_front_chart'
 
-const canvas = document.getElementById('c') as HTMLCanvasElement
-const ctx = canvas.getContext('2d')
+const canvas_pf = document.getElementById('pareto_front') as HTMLCanvasElement
+const ctx_pf = canvas_pf.getContext('2d')
 
-const getJson = (p) => fetch(p).then(r => r.json())
+const canvas_partition = document.getElementById('partition') as HTMLCanvasElement
+const ctx_partition = canvas_partition.getContext('2d')
 
-type TileMap = {
-    tile_vertices: number[][][],
-    tile_populations: number[][]
-}
 type Partition = number[]
+type TileMap = { tile_vertices: number[][][], tile_populations: number[][] }
 
 function polygon(ctx, points: number[][], scale:number=1) {
     ctx.beginPath()
@@ -23,19 +22,22 @@ function polygon(ctx, points: number[][], scale:number=1) {
 
 function draw_partition(map:TileMap, partition: Partition, colors: string[], scale:number=1) {
     partition.forEach((district_idx:number, tile_idx:number) => {
-        ctx.fillStyle = colors[district_idx]
-        polygon(ctx, map.tile_vertices[tile_idx], scale)
-        ctx.fill()
-        ctx.stroke()
+        ctx_partition.fillStyle = colors[district_idx]
+        polygon(ctx_partition, map.tile_vertices[tile_idx], scale)
+        ctx_partition.fill()
+        ctx_partition.stroke()
     })
 }
 
-getJson('data/rundata.json').then(data => {
-    let idx = 0
+fetch('data/rundata.json').
+then(r => r.json()).
+then(data => {
+    // const colors: string[] = Array(data.n_districts).fill(0).map(randomColor)
+    const colors = ['#CE1483', '#E0A890', '#70B77E', '#129490', '#065143']
+
     console.log(data)
-    const colors: string[] = Array(data.n_districts).fill(0).map(randomColor)
-    setInterval(() => {
-        draw_partition(data.map, data.solutions[idx], colors, 400)
-        idx = (idx + 1) % data.solutions.length
-    }, 2000)
+    draw_partition(data.map, data.solutions[0], colors, 400)
+    make_chart({
+        onHover: idx => draw_partition(data.map, data.solutions[idx], colors, 400)
+    }, ctx_pf, data.values, 0, 1, ['Concavity', 'Equality'])
 })

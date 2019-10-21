@@ -83,7 +83,8 @@ with open('out/rundata.json', 'w') as f:
     }, f)
 
 plt.scatter(res.F[:, 0], res.F[:, 1])
-plt.show()
+plt.savefig('out/pareto_front.png')
+# plt.show()
 
 from pymoo.performance_indicator.hv import Hypervolume
 metric = Hypervolume(ref_point=np.array([2.0, 2.0]))
@@ -96,4 +97,5 @@ plt.plot(np.arange(len(hv)), hv, '-o')
 plt.title("Convergence")
 plt.xlabel("Generation")
 plt.ylabel("Hypervolume")
-plt.show()
+plt.savefig('out/convergence.png')
+# plt.show()

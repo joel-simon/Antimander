@@ -60,7 +60,7 @@ class Partition:
 
         concavity = 4 * math.pi * areas / (perimeters*perimeters)
         equality = areas.std() / areas.mean()
-        return [ 1 - concavity.min(), equality ]
+        return [ (1 - concavity).max(), equality ]
 
     def switchTile(self, tile_idx, d_to):
         d_from = self.tile_districts[tile_idx]
