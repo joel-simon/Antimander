@@ -52,10 +52,6 @@ solutions, values = run(
     copy=copy
 )
 
-# np.save('out/values.npy', np.array(values))
-# np.save('out/solutions.npy', np.array([s.tile_districts for s in solutions]))
-# with open('out/values.json', 'w') as f:
-
 with open('out/rundata.json', 'w') as f:
     json.dump({
         'n_districts': n_districts,

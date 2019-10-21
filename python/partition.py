@@ -4,12 +4,11 @@ from copy import deepcopy
 from utils.articulationPoints import articulationPoints
 
 class Partition:
-    def __init__(self, map, n_districts, tile_districts, district_frontiers, colors):
+    def __init__(self, map, n_districts, tile_districts, district_frontiers):
         self.map = map
         self.n_districts = n_districts
         self.tile_districts = tile_districts
         self.district_frontiers = district_frontiers
-        self.district_colors = colors
 
     def sameDistrictNeighbours(self, tile_idx):
         """ Helper function. """
@@ -25,26 +24,12 @@ class Partition:
             if self.tile_districts[tile_idx_2] != district:
                 yield tile_idx_2
 
-    def evaluate(self):
-        areas = np.zeros(self.n_districts)
-        perimeters = np.zeros(self.n_districts)
-        for t_i in range(self.map.n_tiles):
-            d_i = self.tile_districts[t_i]
-            perimeters[d_i] += sum(1 for _ in self.otherDistrictNeighbours(t_i))
-            areas[d_i] += 1
-
-        concavity = 4 * math.pi * areas / (perimeters*perimeters)
-        equality = 1 - areas.std()
-        # return concavity, equ
-        return [ concavity.min(), equality ]
-
     def copy(self):
         return Partition(
             self.map,
             self.n_districts,
             self.tile_districts.copy(),
             deepcopy(self.district_frontiers),
-            self.district_colors,
         )
 
     def cantLose(self, district_idx):
@@ -64,6 +49,18 @@ class Partition:
         if len(swap_to):
             d_to = self.tile_districts[random.choice(swap_to)]
             self.switchTile(tile_idx, d_to)
+
+    def evaluate(self):
+        areas = np.zeros(self.n_districts)
+        perimeters = np.zeros(self.n_districts)
+        for t_i in range(self.map.n_tiles):
+            d_i = self.tile_districts[t_i]
+            perimeters[d_i] += sum(1 for _ in self.otherDistrictNeighbours(t_i))
+            areas[d_i] += 1
+
+        concavity = 4 * math.pi * areas / (perimeters*perimeters)
+        equality = areas.std() / areas.mean()
+        return [ 1 - concavity.min(), equality ]
 
     def switchTile(self, tile_idx, d_to):
         d_from = self.tile_districts[tile_idx]
@@ -105,12 +102,20 @@ class Partition:
                     f'{tile_idx} is not frontier but in d_{district_idx}'
 
     @classmethod
+    def fromDistrictsArray(cls, map, n_districts, tile_districts):
+        district_frontiers = [set() for _ in range(n_districts)]
+        p = Partition(map, n_districts, tile_districts, district_frontiers)
+
+        for i in range(map.n_tiles):
+            if p.tileIsFrontier(i):
+                district_frontiers[tile_districts[i]].add(i)
+        return p
+
+    @classmethod
     def makeRandom(cls, n_districts, map, seed=None):
         random.seed(seed)
         seeds = random.sample(map.boundry_tiles, n_districts)
         tile_districts = np.full(map.n_tiles, -1, dtype='i')
-        colors = np.random.randint(0, 255, size=(map.n_tiles+1, 3))
-        colors[-1] = [0, 0,0]
         district_frontiers = [ set([ seed ]) for seed in seeds ]
         for dist_idx, tile_idx in enumerate(seeds):
             tile_districts[tile_idx] = dist_idx
@@ -119,15 +124,17 @@ class Partition:
             for t2 in map.tile_neighbours[t1]:
                 if tile_districts[t2] == -1:
                     empty_frontier.add(t2)
+
         district_frontiers.append(empty_frontier)
-        p = Partition(map, n_districts, tile_districts, district_frontiers, colors)
+
+        p = Partition(map, n_districts, tile_districts, district_frontiers)
+
         while empty_frontier:
             tile = next(iter(empty_frontier))
             opts = [ t for t in map.tile_neighbours[tile] if tile_districts[t] >= 0 ]
             dist_dst = tile_districts[random.choice(opts)]
-            # p._validate()
             p.switchTile(tile, dist_dst)
-            # p._validate()
         p.district_frontiers = district_frontiers[:-1] # Remove the 'empty' frontier.
+
         return p
 

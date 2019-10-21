@@ -33,7 +33,7 @@ function draw_partition(map:TileMap, partition: Partition, colors: string[], sca
 getJson('data/rundata.json').then(data => {
     let idx = 0
     console.log(data)
-    const colors: string[] = Array(5).fill(0).map(randomColor)
+    const colors: string[] = Array(data.n_districts).fill(0).map(randomColor)
     setInterval(() => {
         draw_partition(data.map, data.solutions[idx], colors, 400)
         idx = (idx + 1) % data.solutions.length
