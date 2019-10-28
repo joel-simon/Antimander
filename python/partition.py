@@ -50,17 +50,17 @@ class Partition:
             d_to = self.tile_districts[random.choice(swap_to)]
             self.switchTile(tile_idx, d_to)
 
-    def evaluate(self):
-        areas = np.zeros(self.n_districts)
-        perimeters = np.zeros(self.n_districts)
-        for t_i in range(self.map.n_tiles):
-            d_i = self.tile_districts[t_i]
-            perimeters[d_i] += sum(1 for _ in self.otherDistrictNeighbours(t_i))
-            areas[d_i] += 1
+    # def evaluate(self):
+    #     areas = np.zeros(self.n_districts)
+    #     perimeters = np.zeros(self.n_districts)
+    #     for t_i in range(self.map.n_tiles):
+    #         d_i = self.tile_districts[t_i]
+    #         perimeters[d_i] += sum(1 for _ in self.otherDistrictNeighbours(t_i))
+    #         areas[d_i] += 1
 
-        concavity = 4 * math.pi * areas / (perimeters*perimeters)
-        equality = areas.std() / areas.mean()
-        return [ (1 - concavity).max(), equality ]
+    #     concavity = 4 * math.pi * areas / (perimeters*perimeters)
+    #     equality = areas.std() / areas.mean()
+    #     return [ (1 - concavity).max(), equality ]
 
     def switchTile(self, tile_idx, d_to):
         d_from = self.tile_districts[tile_idx]
@@ -114,27 +114,35 @@ class Partition:
     @classmethod
     def makeRandom(cls, n_districts, map, seed=None):
         random.seed(seed)
+
+        # Create a random seed for each disrict that is on the border.
         seeds = random.sample(map.boundry_tiles, n_districts)
         tile_districts = np.full(map.n_tiles, -1, dtype='i')
         district_frontiers = [ set([ seed ]) for seed in seeds ]
         for dist_idx, tile_idx in enumerate(seeds):
             tile_districts[tile_idx] = dist_idx
+
+        # Preserve the front of the 'empty' district.
         empty_frontier = set()
         for t1 in seeds:
             for t2 in map.tile_neighbours[t1]:
                 if tile_districts[t2] == -1:
                     empty_frontier.add(t2)
 
+        # Treat 'empty' as a final district
         district_frontiers.append(empty_frontier)
 
         p = Partition(map, n_districts, tile_districts, district_frontiers)
 
+        # Add empty tile to districts.
         while empty_frontier:
             tile = next(iter(empty_frontier))
             opts = [ t for t in map.tile_neighbours[tile] if tile_districts[t] >= 0 ]
             dist_dst = tile_districts[random.choice(opts)]
             p.switchTile(tile, dist_dst)
-        p.district_frontiers = district_frontiers[:-1] # Remove the 'empty' frontier.
+
+        # Remove the 'empty' frontier.
+        p.district_frontiers = district_frontiers[:-1]
 
         return p
 

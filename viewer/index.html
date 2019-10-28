@@ -12,11 +12,23 @@
             text-align: center;
         }
         canvas {
-            float: left;
+            /*float: left;*/
         }
         #pareto_container {
             width: 40vw;
-            position: relative;
+            top:0px;
+            /*height: 100%;*/
+            position: fixed;
+        }
+        #partition_container {
+            width: 40vw;
+            top:0px;
+            left: 40vw;
+            height: 100vh;
+            position: fixed;
+        }
+        #partition_text {
+            width: 100%;
         }
     </style>
 </head>
@@ -24,6 +36,11 @@
     <div id=pareto_container>
         <canvas id="pareto_front" width=400px height=400px></canvas>
     </div>
-    <canvas id="partition" width=400px height=400px/></canvas>
+    <div id=partition_container>
+        <canvas id="partition" width=400px height=400px/></canvas>
+        <div id='partition_text'>
+        </div>
+    </div>
+
 </body>
 

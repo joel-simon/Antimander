@@ -1,5 +1,4 @@
 import { Chart } from 'chart.js'
-console.log(Chart)
 type Point = { x: number, y: number}
 
 export function make_chart(

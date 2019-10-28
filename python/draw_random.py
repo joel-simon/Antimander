@@ -5,8 +5,10 @@ from pygame import gfxdraw
 from map import Map
 from partition import Partition
 
+from metrics import compactness_district_centers as cdc, efficiency_gap
+
 m = Map.makeRandom(100, seed=0)
-p = Partition.makeRandom(5, m, seed=None)
+p = Partition.makeRandom(8, m, seed=None)
 
 pygame.init()
 screen = pygame.display.set_mode((600, 600))
@@ -37,15 +39,15 @@ def draw_map(map):
         #             v2 = (int(x2*600), int(y2*600))
 
 
-def draw_partition(partition):
+def draw_partition(partition, colors):
     m = partition.map
 
     for i in range(m.n_tiles):
         vertices = [ (x*600, y*600) for x,y in m.tile_vertices[i] ]
         district = partition.tile_districts[i]
 
-        color = partition.district_colors[district]
-        gfxdraw.filled_polygon(screen, vertices, color)
+
+        gfxdraw.filled_polygon(screen, vertices, colors[district] )
         gfxdraw.aapolygon(screen, vertices, (50, 50, 50))
 
         x,y = m.tile_centers[i]
@@ -60,16 +62,21 @@ def draw_partition(partition):
         # text = font.render(f'{i}: {district}', True, (20, 20, 20))
         # screen.blit(text, (v[0]-20, v[1]))
 
-# draw_map(m)
-draw_partition(p)
-print(p.evaluate()[0])
+colors = [ [ random.randint(0, 255) for _ in range(3) ]
+           for _ in range(p.n_districts) ]
+
+mutate = False
+draw_partition(p, colors)
+print(efficiency_gap(m, p))
+
 while True:
-    p2 = p.copy()
-    p2.mutate()
-    if p2.evaluate()[0] > p.evaluate()[0]:
-        p = p2
-        print('better')
-        draw_partition(p)
+    if mutate:
+        p2 = p.copy()
+        p2.mutate()
+        if cdc(m, p2) < cdc(m, p):
+            p = p2
+            print('better')
+            draw_partition(p, colors)
     for event in pygame.event.get():
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
@@ -77,7 +84,7 @@ while True:
                 quit()
             elif event.key == pygame.K_LEFT:
                 p.mutate()
-                draw_partition(p)
+                draw_partition(p, colors)
                 # pass
         if event.type == pygame.QUIT:
             pygame.quit()

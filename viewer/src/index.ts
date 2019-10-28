@@ -1,43 +1,55 @@
 import * as randomColor from 'randomColor'
 import { make_chart } from './pareto_front_chart'
+import { Partition, TileMap } from './types'
+import { draw_partition } from './draw'
 
 const canvas_pf = document.getElementById('pareto_front') as HTMLCanvasElement
 const ctx_pf = canvas_pf.getContext('2d')
-
 const canvas_partition = document.getElementById('partition') as HTMLCanvasElement
 const ctx_partition = canvas_partition.getContext('2d')
 
-type Partition = number[]
-type TileMap = { tile_vertices: number[][][], tile_populations: number[][] }
+const div_text = document.getElementById('partition_text')
 
-function polygon(ctx, points: number[][], scale:number=1) {
-    ctx.beginPath()
-    ctx.moveTo(scale*points[0][0], scale*points[0][1])
-    for (var i = 1; i < points.length; i++) {
-        ctx.lineTo(scale*points[i][0], scale*points[i][1])
-    }
-    ctx.lineTo(scale*points[0][0], scale*points[0][1])
-    ctx.closePath()
-}
+function update_text(div: HTMLElement, data, p_idx: number, colors: string[]) {
+    // const {map:TileMap = data.map, p: Partition
+    div.innerHTML = ''
+    const district_voters = new Array(data.n_districts).fill(0).map(() => [0, 0])
 
-function draw_partition(map:TileMap, partition: Partition, colors: string[], scale:number=1) {
+    const partition = data.solutions[p_idx]
+
     partition.forEach((district_idx:number, tile_idx:number) => {
-        ctx_partition.fillStyle = colors[district_idx]
-        polygon(ctx_partition, map.tile_vertices[tile_idx], scale)
-        ctx_partition.fill()
-        ctx_partition.stroke()
+        district_voters[district_idx][0] += data.map.tile_populations[tile_idx][0]
+        district_voters[district_idx][1] += data.map.tile_populations[tile_idx][1]
     })
+    for (let i = 0; i < data.n_districts; i++) {
+        const p = document.createElement('p')
+        p.innerHTML = `${district_voters[i][0]} | ${district_voters[i][1]}`
+        p.style.color = colors[i]
+        div.appendChild(p)
+    }
 }
 
 fetch('data/rundata.json').
-then(r => r.json()).
-then(data => {
-    // const colors: string[] = Array(data.n_districts).fill(0).map(randomColor)
-    const colors = ['#CE1483', '#E0A890', '#70B77E', '#129490', '#065143']
+    then(r => r.json()).
+    then(data => {
+        const colors: string[] = Array(data.n_districts).fill(0).map(randomColor)
 
-    console.log(data)
-    draw_partition(data.map, data.solutions[0], colors, 400)
-    make_chart({
-        onHover: idx => draw_partition(data.map, data.solutions[idx], colors, 400)
-    }, ctx_pf, data.values, 0, 1, ['Concavity', 'Equality'])
-})
+        // const m: TileMap = data.map
+        // console.log(data)
+
+        draw_partition(ctx_partition, data.map, data.solutions[0], colors, 400)
+        update_text(div_text, data, 0, colors)
+
+        make_chart(
+            {
+                onHover: p_i => {
+                    draw_partition(ctx_partition, data.map, data.solutions[p_i], colors, 400)
+                    update_text(div_text, data, p_i, colors)
+                }
+            },
+            ctx_pf,
+            data.values,
+            0, 1,
+            [ 'Compactness', 'Efficiency Gap' ]
+        )
+    })
