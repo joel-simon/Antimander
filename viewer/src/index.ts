@@ -33,7 +33,6 @@ fetch('data/rundata.json').
     then(r => r.json()).
     then(data => {
         const colors: string[] = Array(data.n_districts).fill(0).map(randomColor)
-
         // const m: TileMap = data.map
         // console.log(data)
 

@@ -4,11 +4,16 @@ from pygame import gfxdraw
 
 from map import Map
 from partition import Partition
-
+from constraints import pop_equality, fix_pop_equality
 from metrics import compactness_district_centers as cdc, efficiency_gap
 
 m = Map.makeRandom(100, seed=0)
-p = Partition.makeRandom(8, m, seed=None)
+p = Partition.makeRandom(6, m, seed=None)
+fix_pop_equality(m, p)
+# P = [ Partition.makeRandom(6, m, seed=None) for  _ in range(100) ]
+# print(
+#     sum( pop_equality( m, p ) for p in P)
+# )
 
 pygame.init()
 screen = pygame.display.set_mode((600, 600))
@@ -68,6 +73,7 @@ colors = [ [ random.randint(0, 255) for _ in range(3) ]
 mutate = False
 draw_partition(p, colors)
 print(efficiency_gap(m, p))
+print(pop_equality(m, p))
 
 while True:
     if mutate:

@@ -53,4 +53,5 @@ def efficiency_gap(map, partition):
             lost_votes[d_i, 0] += d_pop[d_i, 0]
 
     total_lost = np.absolute(lost_votes[:, 0] - lost_votes[:, 1]).sum()
-    return 1.0-(total_lost / total_votes)
+    score = total_lost / total_votes # range [0.5, 1]
+    return (score-0.5) * 2 #[range 0, 1]

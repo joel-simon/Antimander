@@ -39,6 +39,9 @@ class Partition:
 
     def mutate(self):
         district = random.randint(0, self.n_districts-1)
+        self.removeTileRandom(district)
+
+    def removeTileRandom(self, district):
         cantLose = set(self.cantLose(district))
         options = [ i for i in np.where(self.tile_districts == district)[0] \
                     if i not in cantLose ]
@@ -50,17 +53,13 @@ class Partition:
             d_to = self.tile_districts[random.choice(swap_to)]
             self.switchTile(tile_idx, d_to)
 
-    # def evaluate(self):
-    #     areas = np.zeros(self.n_districts)
-    #     perimeters = np.zeros(self.n_districts)
-    #     for t_i in range(self.map.n_tiles):
-    #         d_i = self.tile_districts[t_i]
-    #         perimeters[d_i] += sum(1 for _ in self.otherDistrictNeighbours(t_i))
-    #         areas[d_i] += 1
-
-    #     concavity = 4 * math.pi * areas / (perimeters*perimeters)
-    #     equality = areas.std() / areas.mean()
-    #     return [ (1 - concavity).max(), equality ]
+    def addTileRandom(self, d_i):
+        t_i = random.choice(list(self.district_frontiers[d_i]))
+        for swap_option in self.otherDistrictNeighbours(t_i):
+            d_to = self.tile_districts[swap_option]
+            if swap_option not in self.cantLose(d_to):
+                self.switchTile(swap_option, d_i)
+                break
 
     def switchTile(self, tile_idx, d_to):
         d_from = self.tile_districts[tile_idx]

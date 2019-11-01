@@ -14,6 +14,7 @@ from pymoo.performance_indicator.hv import Hypervolume
 from map import Map
 from partition import Partition
 from metrics import efficiency_gap, equality, compactness_district_centers as compactness
+from constraints import fix_pop_equality
 
 metric = Hypervolume(ref_point=np.array([2.0, 2.0]))
 
@@ -35,10 +36,17 @@ class PartitionMutation(Mutation):
             for x in X
         ]
         for i in range(len(partitions)):
+            p_orig = partitions[i].copy()
             if random.random() < 0.2:
                 partitions[i] = Partition.makeRandom(self.n_districts, self.map)
             for _ in range(random.randint(0, 10)):
                 partitions[i].mutate()
+
+            try:
+                fix_pop_equality(self.map, partitions[i])
+            except ValueError as e:
+                partitions[i] = p_orig
+
         return np.array([ p.tile_districts for p in partitions ])
 
 class DistrictProblem(Problem):
@@ -53,12 +61,14 @@ class DistrictProblem(Problem):
         # return np.array([0, 0, 0])
 
     def _evaluate(self, X, out, *args, **kwargs):
-        partitions = [ Partition.fromDistrictsArray(self.map, self.n_districts, x) for x in X ]
+        partitions = [
+            Partition.fromDistrictsArray(self.map, self.n_districts, x)
+            for x in X
+        ]
         out['F'] = np.array([
             [ f(self.map, p) for f in (compactness, efficiency_gap) ]
             for p in partitions
         ])
-        # print(out['F'].shape, out['F'].dtype)
         print(metric.calc(out['F']))
 
 if __name__ == '__main__':
@@ -71,7 +81,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     m = Map.makeRandom(args.n_tiles, seed=0)
-    seeds = [ Partition.makeRandom(args.n_districts, m) for _ in range(args.pop_size) ]
+
+    seeds = [
+        Partition.makeRandom(args.n_districts, m)
+        for _ in range(args.pop_size)
+    ]
+    for p in seeds:
+        fix_pop_equality(m, p, tolerance=.20, max_iters=600)
     seeds = np.array([ p.tile_districts for p in seeds ])
 
     algorithm = NSGA2(
@@ -105,11 +121,8 @@ if __name__ == '__main__':
     plt.scatter(res.F[:, 0], res.F[:, 1])
     plt.savefig(os.path.join(args.out, 'pareto_front.png'))
 
-    metric = Hypervolume(ref_point=np.array([2.0, 2.0]))
-    pop_each_gen = [a.pop for a in res.history]
-
+    pop_each_gen = [ a.pop for a in res.history[1:] ]
     obj_and_feasible_each_gen = [pop[pop.get("feasible")[:,0]].get("F") for pop in pop_each_gen]
-
     hv = [ metric.calc(f) for f in obj_and_feasible_each_gen ]
 
     plt.plot(np.arange(len(hv)), hv, '-o')
