@@ -11,7 +11,7 @@ cpdef void mutate(int[:] districts, int n_districts, state, float m_rate, int po
     """ Mutate a partition.
     """
     cdef int edits = 0
-    cdef int to_edit = int(m_rate * state.n_tiles)
+    cdef int to_edit = max(1, int(m_rate * state.n_tiles))
     cdef int max_tries = 200
     cdef int ti, tk, di, t_other, d_other
     cdef list options

@@ -69,14 +69,21 @@ cpdef float efficiency_gap(state, int[:] districts, int n_districts) except *:
     cdef float score = float(total_lost) / total_votes # range [0.5, 1]
     return (score-0.5) * 2 #[range 0, 1]
 
+cpdef float compactness_polsby_popper(state, int[:] districts, int n_districts):
+    cdef float[:] areas = np.zeros(n_districts, dtype='float32')
+    cdef float[:] perimeters = np.zeros(n_districts, dtype='float32')
+    cdef int ti, di, tj
 
+    for ti in range(state.n_tiles):
+        di = districts[ti]
+        for tj in state.tile_neighbours[ti]:
+            perimeters[di] += districts[ti] != districts[tj]
+        areas[di] += 1
 
-# def compactness_polsby_popper(state, districts, n_districts):
-#     areas = np.zeros(n_districts)
-#     perimeters = np.zeros(n_districts)
-#     for t_i in range(state.n_tiles):
-#         d_i = districts[t_i]
-#         perimeters[d_i] += sum(1 for _ in districts.otherDistrictNeighbours(t_i))
-#         areas[d_i] += 1
-#     concavity = 4 * math.pi * areas / (perimeters*perimeters)
-#     return 1-concavity.mean()
+    cdef float p
+    # cdef float mean_concavity = 0
+    for di in range(n_districts):
+        p = perimeters[di] * perimeters[di]
+        areas[di] = 4 * math.pi * areas[di] / (p)
+
+    return 1.0 - np.min(areas)

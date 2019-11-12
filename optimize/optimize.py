@@ -13,7 +13,7 @@ from pymoo.performance_indicator.hv import Hypervolume
 
 from state import State
 import districts
-from metrics import efficiency_gap, compactness
+from metrics import efficiency_gap, compactness, compactness_polsby_popper
 from constraints import fix_pop_equality
 import mutation
 
@@ -39,7 +39,8 @@ class DistrictMutation(Mutation):
         t = time.time()
         X = X.copy()
         for i in range(X.shape[0]):
-            mutation.mutate(X[i], self.n_districts, self.state, .02, self.pop_min, self.pop_max)
+            mutation_rate = random.gauss(0.02, .01)
+            mutation.mutate(X[i], self.n_districts, self.state, mutation_rate, self.pop_min, self.pop_max)
         return X
 
 class DistrictProblem(Problem):
