@@ -1,15 +1,8 @@
 import random
 import numpy as np
 from utils.articulation_points import articulationPoints
-from connectivity import is_frontier, can_lose
-
-def count_pop(map, partition, n_districts):
-    d_pop = np.zeros(n_districts , dtype='i')
-    for t_i in range(map.n_tiles):
-        d_pop[partition[t_i]] += map.tile_populations[ t_i, 0 ]
-        d_pop[partition[t_i]] += map.tile_populations[ t_i, 1 ]
-    return d_pop
-
+from connectivity import can_lose
+from districts import count_pop, is_frontier
 # def pop_equality(map, partition, n_districts, tolerance=.15):
 #     total_pop = map.tile_populations.sum()
 #     ideal_pop = total_pop / n_districts

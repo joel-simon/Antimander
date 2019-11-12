@@ -14,7 +14,7 @@ from pymoo.performance_indicator.hv import Hypervolume
 from state import State
 import districts
 from metrics import efficiency_gap, compactness
-from constraints import fix_pop_equality, count_pop
+from constraints import fix_pop_equality
 import mutation
 
 metric = Hypervolume(ref_point=np.array([2.0, 2.0]))
@@ -102,7 +102,7 @@ if __name__ == '__main__':
         ('n_gen', args.n_gens),
         seed=1,
         verbose=True,
-        save_history=True
+        save_history=False
     )
 
     with open(os.path.join(args.out, 'rundata.json'), 'w') as f:
@@ -117,12 +117,11 @@ if __name__ == '__main__':
     plt.scatter(res.F[:, 0], res.F[:, 1])
     plt.savefig(os.path.join(args.out, 'pareto_front.png'))
 
-    pop_each_gen = [ a.pop for a in res.history[1:] ]
-    obj_and_feasible_each_gen = [pop[pop.get("feasible")[:,0]].get("F") for pop in pop_each_gen]
-    hv = [ metric.calc(f) for f in obj_and_feasible_each_gen ]
-
-    plt.plot(np.arange(len(hv)), hv, '-o')
-    plt.title("Convergence")
-    plt.xlabel("Generation")
-    plt.ylabel("Hypervolume")
-    plt.savefig(os.path.join(args.out, 'convergence.png'))
+    # pop_each_gen = [ a.pop for a in res.history[1:] ]
+    # obj_and_feasible_each_gen = [pop[pop.get("feasible")[:,0]].get("F") for pop in pop_each_gen]
+    # hv = [ metric.calc(f) for f in obj_and_feasible_each_gen ]
+    # plt.plot(np.arange(len(hv)), hv, '-o')
+    # plt.title("Convergence")
+    # plt.xlabel("Generation")
+    # plt.ylabel("Hypervolume")
+    # plt.savefig(os.path.join(args.out, 'convergence.png'))

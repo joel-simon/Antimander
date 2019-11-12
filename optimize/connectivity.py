@@ -12,7 +12,3 @@ def can_lose(partition, map, n_districts, t_i):
     fist_key = next(iter(vis.keys()))
     dfs(partition, map.neighbour_graph[t_i], vis, fist_key)
     return all(vis.values())
-
-def is_frontier(partition, map, ti):
-    di = partition[ti]
-    return any(partition[tj] != di for tj in map.tile_neighbours[ti])

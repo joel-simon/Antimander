@@ -2,7 +2,6 @@ import random, math
 import numpy as np
 from utils import polygon
 
-
 class State:
     """ The sate is static and knows nothing about districts.
         It is a set of connected tiles.
@@ -11,11 +10,12 @@ class State:
         assert tile_populations.shape[1] == 2 #Only support 2-parties for now.
         self.n_tiles = len(tile_populations)
         self.tile_populations = tile_populations
+        self.tile_populations_tot = tile_populations.sum(axis=1).astype('int32')
         self.tile_vertices = tile_vertices
         self.tile_neighbours = tile_neighbours
         self.tile_boundaries = tile_boundaries
         self.tile_edges = tile_edges
-        self.tile_centers = np.array([ polygon.centroid(v) for v in tile_vertices ])
+        self.tile_centers = np.array([ polygon.centroid(v) for v in tile_vertices ], dtype='float32')
         self.boundry_tiles = [ i for i in range(self.n_tiles) if self.tile_boundaries[i] ]
 
         self.neighbour_graph = []
@@ -37,7 +37,7 @@ class State:
         tile_vertices = [ c['vertices'] for c in cells ]
         tile_neighbours = [[ e['adjacent_cell'] for e in c['faces'] if e['adjacent_cell'] >= 0] for c in cells ]
         tile_boundaries = [ any( e['adjacent_cell'] < 0 for e in c['faces']) for c in cells ]
-        tile_populations = np.random.randint(0, 10, size=(n_tiles, n_classes))
+        tile_populations = np.random.randint(0, 10, size=(n_tiles, n_classes), dtype='int32')
         tile_edges = [ c['faces'] for c in cells ]
 
         return State(tile_populations, tile_vertices, tile_neighbours, tile_boundaries, tile_edges)

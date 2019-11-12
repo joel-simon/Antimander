@@ -1,5 +1,28 @@
+# cython: boundscheck=False
+# cython: wraparound=False
+# cython: initializedcheck=False
+# cython: nonecheck=False
+# cython: cdivision=True
 import random
 import numpy as np
+cimport numpy as np
+
+cpdef int[:] count_pop(state, int[:] partition, int n_districts) except *:
+    cdef int[:, :] tile_populations = state.tile_populations
+    cdef int[:] d_pop = np.zeros(n_districts , dtype='i')
+    cdef int ti
+    for ti in range(state.n_tiles):
+        d_pop[partition[ti]] += tile_populations[ ti, 0 ]
+        d_pop[partition[ti]] += tile_populations[ ti, 1 ]
+    return d_pop
+
+cpdef bint is_frontier(int[:] partition, state, int ti) except *:
+    cdef int tj
+    cdef int di = partition[ti]
+    for tj in state.tile_neighbours[ti]:
+        if partition[tj] != di:
+            return True
+    return False
 
 def make_random(state, n_districts):
     seeds = random.sample(state.boundry_tiles, n_districts)
