@@ -1,6 +1,5 @@
 import random, math
 import numpy as np
-
 from utils import polygon
 
 
@@ -18,6 +17,15 @@ class Map:
         self.tile_edges = tile_edges
         self.tile_centers = np.array([ polygon.centroid(v) for v in tile_vertices ])
         self.boundry_tiles = [ i for i in range(self.n_tiles) if self.tile_boundaries[i] ]
+
+        self.neighbour_graph = []
+        for i in range(self.n_tiles):
+            ng = dict()
+            neighours = self.tile_neighbours[i]
+            for j in neighours:
+                ng[j] = [k for k in self.tile_neighbours[j] if k in neighours]
+            self.neighbour_graph.append(ng)
+
 
     def areTilesNeighbours(self, tile_idx_1, tile_idx_2):
         return any(x == tile_idx_2 for x in self.tile_neighbours[tile_idx_1])

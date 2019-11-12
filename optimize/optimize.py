@@ -1,4 +1,4 @@
-import sys, os, json, random, argparse
+import sys, os, json, random, argparse, time
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -12,9 +12,10 @@ from pymoo.operators.crossover.util import crossover_mask
 from pymoo.performance_indicator.hv import Hypervolume
 
 from map import Map
-from partition import Partition
-from metrics import efficiency_gap, equality, compactness_district_centers as compactness
-from constraints import fix_pop_equality
+import partition
+from metrics import efficiency_gap, compactness
+from constraints import fix_pop_equality, count_pop
+import mutation
 
 metric = Hypervolume(ref_point=np.array([2.0, 2.0]))
 
@@ -29,25 +30,18 @@ class PartitionMutation(Mutation):
         super().__init__()
         self.map = map
         self.n_districts = n_districts
+        total_pop = map.tile_populations.sum()
+        ideal_pop = total_pop / n_districts
+        self.pop_max = ideal_pop * (1+ .1)
+        self.pop_min = ideal_pop * (1- .1)
 
     def _do(self, problem, X, **kwargs):
-        partitions = [
-            Partition.fromDistrictsArray(self.map, self.n_districts, x)
-            for x in X
-        ]
-        for i in range(len(partitions)):
-            p_orig = partitions[i].copy()
-            if random.random() < 0.2:
-                partitions[i] = Partition.makeRandom(self.n_districts, self.map)
-            for _ in range(random.randint(0, 10)):
-                partitions[i].mutate()
+        t = time.time()
+        X = X.copy()
+        for i in range(X.shape[0]):
+            mutation.mutate(X[i], self.n_districts, self.map, .02, self.pop_min, self.pop_max)
 
-            try:
-                fix_pop_equality(self.map, partitions[i])
-            except ValueError as e:
-                partitions[i] = p_orig
-
-        return np.array([ p.tile_districts for p in partitions ])
+        return X
 
 class DistrictProblem(Problem):
     def __init__(self, map, n_districts, **kwargs):
@@ -55,21 +49,19 @@ class DistrictProblem(Problem):
         self.map = map
         self.n_districts = n_districts
 
-    # def _calc_pareto_front(self, n_pareto_points=100):
-    #     x = np.linspace(0, 1, n_pareto_points)
-    #     return np.array([x, x, x]).T
+    def _calc_pareto_front(self, n_pareto_points=100):
+        x = np.linspace(0, 1, n_pareto_points)
+        return np.array([x, x]).T
         # return np.array([0, 0, 0])
 
     def _evaluate(self, X, out, *args, **kwargs):
-        partitions = [
-            Partition.fromDistrictsArray(self.map, self.n_districts, x)
-            for x in X
-        ]
+        t = time.time()
         out['F'] = np.array([
-            [ f(self.map, p) for f in (compactness, efficiency_gap) ]
-            for p in partitions
+            [ f(self.map, p, self.n_districts) for f in (compactness, efficiency_gap) ]
+            for p in X
         ])
-        print(metric.calc(out['F']))
+        print(round(metric.calc(out['F']), 6))
+        # print('evaluated', X.shape[0], 'in', time.time() - t)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
@@ -82,21 +74,26 @@ if __name__ == '__main__':
 
     m = Map.makeRandom(args.n_tiles, seed=0)
 
-    seeds = [
-        Partition.makeRandom(args.n_districts, m)
-        for _ in range(args.pop_size)
-    ]
-    for p in seeds:
-        fix_pop_equality(m, p, tolerance=.20, max_iters=600)
-    seeds = np.array([ p.tile_districts for p in seeds ])
-
+    seeds = []
+    while len(seeds) < args.pop_size:
+        try:
+            p = partition.make_random(m, args.n_districts)
+            fix_pop_equality(m, p, args.n_districts, tolerance=.10, max_iters=600)
+            seeds.append(p)
+        except ValueError as e:
+            print(e)
+            pass
+        except StopIteration as e:
+            print(e)
+            pass
+    print('Created seeds')
     algorithm = NSGA2(
         pop_size=args.pop_size,
-        sampling=seeds,
+        sampling=np.array(seeds),
         crossover=PartitionCross(),
         mutation=PartitionMutation(m, args.n_districts),
     )
-    algorithm.func_display_attrs = None
+    # algorithm.func_display_attrs = None
 
     problem = DistrictProblem(m, args.n_districts)
 

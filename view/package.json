@@ -12,7 +12,8 @@
   },
   "devDependencies": {},
   "scripts": {
-    "start": "budo src/index.ts:bundle.js --live -- -p [ tsify ]"
+    "start": "budo src/index.ts:bundle.js --live -- -p [ tsify ]",
+    "build": "browserify src/index.ts -p [ tsify ] > bundle.js"
   },
   "author": "",
   "license": "ISC"
