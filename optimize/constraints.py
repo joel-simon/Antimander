@@ -10,18 +10,18 @@ def count_pop(map, partition, n_districts):
         d_pop[partition[t_i]] += map.tile_populations[ t_i, 1 ]
     return d_pop
 
-def pop_equality(map, partition, n_districts, tolerance=.15):
-    total_pop = map.tile_populations.sum()
-    ideal_pop = total_pop / n_districts
+# def pop_equality(map, partition, n_districts, tolerance=.15):
+#     total_pop = map.tile_populations.sum()
+#     ideal_pop = total_pop / n_districts
 
-    d_pop = count_pop(map, partition, n_districts)
+#     d_pop = count_pop(map, partition, n_districts)
 
-    if d_pop.max() > ideal_pop * (1+tolerance):
-        return False
-    if d_pop.min() < ideal_pop * (1-tolerance):
-        return False
+#     if d_pop.max() > ideal_pop * (1+tolerance):
+#         return False
+#     if d_pop.min() < ideal_pop * (1-tolerance):
+#         return False
 
-    return True
+#     return True
 
 def fix_pop_equality(map, partition, n_districts, tolerance=.10, max_iters=10000):
     assert 0 < tolerance < 1.0

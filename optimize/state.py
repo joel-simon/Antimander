@@ -3,9 +3,9 @@ import numpy as np
 from utils import polygon
 
 
-class Map:
-    """ The map is static and knows nothing about partitions.
-        It is a s set of connected tiles.
+class State:
+    """ The sate is static and knows nothing about districts.
+        It is a set of connected tiles.
     """
     def __init__(self, tile_populations, tile_vertices, tile_neighbours, tile_boundaries, tile_edges):
         assert tile_populations.shape[1] == 2 #Only support 2-parties for now.
@@ -40,7 +40,7 @@ class Map:
         tile_populations = np.random.randint(0, 10, size=(n_tiles, n_classes))
         tile_edges = [ c['faces'] for c in cells ]
 
-        return Map(tile_populations, tile_vertices, tile_neighbours, tile_boundaries, tile_edges)
+        return State(tile_populations, tile_vertices, tile_neighbours, tile_boundaries, tile_edges)
 
     def toJSON(self):
         return {

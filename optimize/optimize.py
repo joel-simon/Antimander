@@ -11,26 +11,26 @@ from pymoo.model.problem import Problem
 from pymoo.operators.crossover.util import crossover_mask
 from pymoo.performance_indicator.hv import Hypervolume
 
-from map import Map
-import partition
+from state import State
+import districts
 from metrics import efficiency_gap, compactness
 from constraints import fix_pop_equality, count_pop
 import mutation
 
 metric = Hypervolume(ref_point=np.array([2.0, 2.0]))
 
-class PartitionCross(Crossover):
+class DistrictCross(Crossover):
     def __init__(self, **kwargs):
         super().__init__(n_parents=2, n_offsprings=2, **kwargs)
     def _do(self, problem, X, **kwargs):
         return X.copy()
 
-class PartitionMutation(Mutation):
-    def __init__(self, map, n_districts):
+class DistrictMutation(Mutation):
+    def __init__(self, state, n_districts):
         super().__init__()
-        self.map = map
+        self.state = state
         self.n_districts = n_districts
-        total_pop = map.tile_populations.sum()
+        total_pop = state.tile_populations.sum()
         ideal_pop = total_pop / n_districts
         self.pop_max = ideal_pop * (1+ .1)
         self.pop_min = ideal_pop * (1- .1)
@@ -39,14 +39,13 @@ class PartitionMutation(Mutation):
         t = time.time()
         X = X.copy()
         for i in range(X.shape[0]):
-            mutation.mutate(X[i], self.n_districts, self.map, .02, self.pop_min, self.pop_max)
-
+            mutation.mutate(X[i], self.n_districts, self.state, .02, self.pop_min, self.pop_max)
         return X
 
 class DistrictProblem(Problem):
-    def __init__(self, map, n_districts, **kwargs):
-        super().__init__(n_var=map.n_tiles, n_obj=2, type_var=np.integer, **kwargs)
-        self.map = map
+    def __init__(self, state, n_districts, **kwargs):
+        super().__init__(n_var=state.n_tiles, n_obj=2, type_var=np.integer, **kwargs)
+        self.state = state
         self.n_districts = n_districts
 
     def _calc_pareto_front(self, n_pareto_points=100):
@@ -57,10 +56,10 @@ class DistrictProblem(Problem):
     def _evaluate(self, X, out, *args, **kwargs):
         t = time.time()
         out['F'] = np.array([
-            [ f(self.map, p, self.n_districts) for f in (compactness, efficiency_gap) ]
+            [ f(self.state, p, self.n_districts) for f in (compactness, efficiency_gap) ]
             for p in X
         ])
-        print(round(metric.calc(out['F']), 6))
+        # print(round(metric.calc(out['F']), 6))
         # print('evaluated', X.shape[0], 'in', time.time() - t)
 
 if __name__ == '__main__':
@@ -72,13 +71,13 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--out', required=True)
     args = parser.parse_args()
 
-    m = Map.makeRandom(args.n_tiles, seed=0)
+    state = State.makeRandom(args.n_tiles, seed=0)
 
     seeds = []
     while len(seeds) < args.pop_size:
         try:
-            p = partition.make_random(m, args.n_districts)
-            fix_pop_equality(m, p, args.n_districts, tolerance=.10, max_iters=600)
+            p = districts.make_random(state, args.n_districts)
+            fix_pop_equality(state, p, args.n_districts, tolerance=.10, max_iters=600)
             seeds.append(p)
         except ValueError as e:
             print(e)
@@ -90,12 +89,12 @@ if __name__ == '__main__':
     algorithm = NSGA2(
         pop_size=args.pop_size,
         sampling=np.array(seeds),
-        crossover=PartitionCross(),
-        mutation=PartitionMutation(m, args.n_districts),
+        crossover=DistrictCross(),
+        mutation=DistrictMutation(state, args.n_districts),
     )
     # algorithm.func_display_attrs = None
 
-    problem = DistrictProblem(m, args.n_districts)
+    problem = DistrictProblem(state, args.n_districts)
 
     res = minimize(
         problem,
@@ -110,7 +109,7 @@ if __name__ == '__main__':
         json.dump({
             'n_districts': args.n_districts,
             'nsga_config': {},
-            'map': m.toJSON(),
+            'state': state.toJSON(),
             'values': res.F.tolist(),
             'solutions': res.X.tolist()
         }, f)

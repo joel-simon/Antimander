@@ -18,8 +18,8 @@ function update_text(div: HTMLElement, data, p_idx: number, colors: string[]) {
     const partition = data.solutions[p_idx]
 
     partition.forEach((district_idx:number, tile_idx:number) => {
-        district_voters[district_idx][0] += data.map.tile_populations[tile_idx][0]
-        district_voters[district_idx][1] += data.map.tile_populations[tile_idx][1]
+        district_voters[district_idx][0] += data.state.tile_populations[tile_idx][0]
+        district_voters[district_idx][1] += data.state.tile_populations[tile_idx][1]
     })
     for (let i = 0; i < data.n_districts; i++) {
         const p = document.createElement('p')
@@ -36,13 +36,13 @@ fetch('data/rundata.json').
         // const m: TileMap = data.map
         // console.log(data)
 
-        draw_partition(ctx_partition, data.map, data.solutions[0], colors, 400)
+        draw_partition(ctx_partition, data.state, data.solutions[0], colors, 400)
         update_text(div_text, data, 0, colors)
 
         make_chart(
             {
                 onHover: p_i => {
-                    draw_partition(ctx_partition, data.map, data.solutions[p_i], colors, 400)
+                    draw_partition(ctx_partition, data.state, data.solutions[p_i], colors, 400)
                     update_text(div_text, data, p_i, colors)
                 }
             },
