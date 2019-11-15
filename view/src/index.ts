@@ -2,6 +2,7 @@ import * as randomColor from 'randomColor'
 import { make_chart, update_chart } from './pareto_front_chart'
 import { Partition, TileMap } from './types'
 import { draw_partition } from './draw'
+import { generateTable } from './make_dom'
 
 const canvas_pf = document.getElementById('pareto_front') as HTMLCanvasElement
 const ctx_pf = canvas_pf.getContext('2d')
@@ -13,21 +14,45 @@ const metrics_b = document.getElementById('metric_option_b')
 let chart
 
 function update_text(div: HTMLElement, data, p_idx: number, colors: string[]) {
-    div.innerHTML = ''
-    const district_voters = new Array(data.n_districts).fill(0).map(() => [0, 0])
+    const { n_districts, state, solutions, metrics_data } = data
+    // const { lost_votes } = data
+    const party_1 = new Array(n_districts).fill(0)
+    const party_2 = new Array(n_districts).fill(0)
 
-    const partition = data.solutions[p_idx]
-
-    partition.forEach((district_idx:number, tile_idx:number) => {
-        district_voters[district_idx][0] += data.state.tile_populations[tile_idx][0]
-        district_voters[district_idx][1] += data.state.tile_populations[tile_idx][1]
+    const partition = solutions[p_idx]
+    console.log(data);
+    partition.forEach((di:number, tile_idx:number) => {
+        party_1[di] += state.tile_populations[tile_idx][0]
+        party_2[di] += state.tile_populations[tile_idx][1]
     })
-    for (let i = 0; i < data.n_districts; i++) {
-        const p = document.createElement('p')
-        p.innerHTML = `${district_voters[i][0]} | ${district_voters[i][1]}`
-        p.style.color = colors[i]
-        div.appendChild(p)
-    }
+
+    const table = document.getElementById('info_table')
+    table.innerHTML = ''
+
+    const table_data = Array(n_districts).fill(0).map((_, idx ) => {
+        const win_margin = Math.abs(party_1[idx] - party_2[idx]) / (party_1[idx] + party_2[idx])
+        return {
+            'population': party_1[idx] + party_2[idx],
+            // 'party1': party_1[idx],
+            // 'party2': party_2[idx],
+            'lost_votes': metrics_data.lost_votes[p_idx][idx][0] + metrics_data.lost_votes[p_idx][idx][1],
+            // 'lost_votes_p1': data.metrics_data.lost_votes[p_idx][idx][0],
+            // 'lost_votes_p2': data.metrics_data.lost_votes[p_idx][idx][1],
+            'win_margin': (100*win_margin).toFixed(2)+'%'
+        }
+    })
+
+    generateTable(table, table_data)
+    table.querySelectorAll('tbody tr').forEach((row:HTMLElement, idx) => {
+        // console.log(row, idx);
+        row.style.color = colors[idx]
+    })
+    // // for (let i = 0; i < data.n_districts; i++) {
+    //     const p = document.createElement('p')
+    //     p.innerHTML = `${district_voters[i][0]} | ${district_voters[i][1]}`
+    //     p.style.color = colors[i]
+    //     div.appendChild(p)
+    // }
 }
 
 function update_pareto_plot(data) {

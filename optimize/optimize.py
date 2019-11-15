@@ -16,9 +16,7 @@ import districts
 import metrics
 from constraints import fix_pop_equality
 import mutation
-from duplicates import default_is_duplicate, is_duplicate_cmp
-
-
+# from duplicates import default_is_duplicate, is_duplicate_cmp
 
 class DistrictCross(Crossover):
     def __init__(self, **kwargs):
@@ -121,12 +119,18 @@ if __name__ == '__main__':
             'state': state.toJSON(),
             'values': res.F.tolist(),
             'solutions': res.X.tolist(),
-            'metrics' : list(used_metrics.keys())
+            'metrics' : list(used_metrics.keys()),
+            'metrics_data': {
+                'lost_votes': [
+                    np.asarray(metrics.lost_votes(state, x, args.n_districts)).tolist()
+                    for x in res.X
+                ]
+            }
+
         }, f)
 
-    plt.scatter(res.F[:, 0], res.F[:, 1])
-    plt.savefig(os.path.join(args.out, 'pareto_front.png'))
-
+    # plt.scatter(res.F[:, 0], res.F[:, 1])
+    # plt.savefig(os.path.join(args.out, 'pareto_front.png'))
     # pop_each_gen = [ a.pop for a in res.history[1:] ]
     # obj_and_feasible_each_gen = [pop[pop.get("feasible")[:,0]].get("F") for pop in pop_each_gen]
     # hv = [ metric.calc(f) for f in obj_and_feasible_each_gen ]

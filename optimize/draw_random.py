@@ -7,7 +7,7 @@ from state import State
 import districts
 import mutation
 from constraints import fix_pop_equality
-from metrics import compactness, efficiency_gap, competitiveness
+from metrics import compactness, efficiency_gap, competitiveness, lost_votes
 
 n_districts = 5
 state = State.makeRandom(200)
@@ -66,6 +66,7 @@ while True:
         if competitiveness(state, d2, n_districts) < competitiveness(state, districts, n_districts):
             districts = d2
             print(competitiveness(state, d2, n_districts), C(state, d2, n_districts))
+            print(np.asarray(lost_votes(state, d2, n_districts)).tolist())
 
         draw_districts(districts, state, colors)
     for event in pygame.event.get():

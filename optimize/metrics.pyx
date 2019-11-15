@@ -8,6 +8,9 @@ import math
 import numpy as np
 cimport numpy as np
 
+################################################################################
+# Helper functions.
+################################################################################
 cdef inline float udist(float[:] a, float[:] b):
     """ Euclidian distance between two vectors.
         Faster than numpy.linalg.norm.
@@ -16,13 +19,24 @@ cdef inline float udist(float[:] a, float[:] b):
     cdef float y = a[1] - b[1]
     return sqrt(x*x + y*y)
 
+cdef int[:,:] district_populations(state, int[:] districts, int n_districts) except *:
+    cdef int[:,:] tile_populations = state.tile_populations
+    cdef int[:,:] dist_pop = np.zeros((n_districts, 2) , dtype='i')
+    cdef int ti
+    for ti in range(state.n_tiles):
+        dist_pop[districts[ti], 0] += tile_populations[ti, 0]
+        dist_pop[districts[ti], 1] += tile_populations[ti, 1]
+    return dist_pop
+
+################################################################################
+# Compactness
+################################################################################
 cpdef float compactness(state, int[:] districts, int n_districts) except *:
     cdef float[:,:] tile_centers = state.tile_centers
     cdef float[:,:] centers   = np.zeros((n_districts, 2), dtype='float32')
     cdef float[:] distances   = np.zeros(n_districts, dtype='float32')
     cdef float[:] district_size = np.zeros(n_districts, dtype='float32')
     cdef int ti, di
-
     #---------------------------------------------------------------------------
     # Find the average point.
     for ti in range(districts.shape[0]):
@@ -30,64 +44,61 @@ cpdef float compactness(state, int[:] districts, int n_districts) except *:
         centers[di, 0] += tile_centers[ti, 0]
         centers[di, 1] += tile_centers[ti, 1]
         district_size[di] += 1
-
     for di in range(n_districts):
         centers[di, 0] /= district_size[di]
         centers[di, 1] /= district_size[di]
-
     #---------------------------------------------------------------------------
-
+    # Find distances to average point.
     for ti in range(districts.shape[0]):
         di = districts[ti]
         distances[di] += udist(tile_centers[ti], centers[di])
 
     return np.mean(distances) / sqrt(state.n_tiles)
 
+################################################################################
+# Competitiveness
+################################################################################
 cpdef float competitiveness(state, int[:] districts, int n_districts) except *:
-    cdef int[:,:] tile_populations = state.tile_populations
-    cdef float[:, :] dist_pop = np.zeros((n_districts, 2) , dtype='float32')
-    cdef float margin
+
+    cdef int[:, :] dist_pop = district_populations(state, districts, n_districts)
+    cdef float margin, diff
     cdef float max_margin = 0.0
-    cdef int di, ti
-
-    for ti in range(state.n_tiles):
-        dist_pop[districts[ti], 0] += tile_populations[ti, 0]
-        dist_pop[districts[ti], 1] += tile_populations[ti, 1]
-
+    cdef int di
     for di in range(n_districts):
-        margin = abs(dist_pop[di, 0] - dist_pop[di, 1]) / (dist_pop[di, 0] + dist_pop[di, 1])
+        diff = float(abs(dist_pop[di, 0] - dist_pop[di, 1]))
+        margin = diff / (dist_pop[di, 0] + dist_pop[di, 1])
         if margin > max_margin:
             max_margin = margin
-
     return max_margin
 
-
-cpdef float efficiency_gap(state, int[:] districts, int n_districts) except *:
-    cdef int total_votes      = state.tile_populations.sum()
-    cdef int[:, :] dist_pop   = np.zeros((n_districts, 2) , dtype='i')
+################################################################################
+# Efficiency Gap
+################################################################################
+cpdef int[:, :] lost_votes(state, int[:] districts, int n_districts) except *:
+    # Helper for efficiency_gap
+    cdef int[:, :] dist_pop   = district_populations(state, districts, n_districts)
     cdef int[:, :] lost_votes = np.zeros((n_districts, 2), dtype='i')
-    cdef int[:,:] tile_populations = state.tile_populations
-    cdef int ti, di, avg_pop
-
-    for ti in range(state.n_tiles):
-        dist_pop[districts[ti], 0] += tile_populations[ti, 0]
-        dist_pop[districts[ti], 1] += tile_populations[ti, 1]
-
+    cdef int di, avg_pop
     for di in range(n_districts):
-        avg_pop = <int>((dist_pop[di, 0]+dist_pop[di, 1])*0.5)
+        avg_pop = ((dist_pop[di, 0]+dist_pop[di, 1]) // 2)
         if dist_pop[di,  0] > dist_pop[di, 1]:
             lost_votes[di, 0] += dist_pop[di, 0] - avg_pop
             lost_votes[di, 1] += dist_pop[di, 1]
         else:
             lost_votes[di, 1] += dist_pop[di, 1] - avg_pop
             lost_votes[di, 0] += dist_pop[di, 0]
+    return lost_votes
 
-    cdef int total_lost = 0
+cpdef float efficiency_gap(state, int[:] districts, int n_districts) except *:
+    cdef float total_lost = 0
+    cdef int total_votes = state.tile_populations.sum()
+    cdef int[:,:] lv = lost_votes(state, districts, n_districts)
     for di in range(n_districts):
-        total_lost += abs(lost_votes[di, 0] - lost_votes[di, 1])
+        total_lost += abs(lv[di, 0] - lv[di, 1])
+    cdef float score = total_lost / total_votes
+    return score
 
-    cdef float score = float(total_lost) / total_votes # range [0.5, 1]
-    return (score-0.5) * 2 #[range 0, 1]
+################################################################################
 
 cpdef float compactness_polsby_popper(state, int[:] districts, int n_districts):
     cdef float[:] areas = np.zeros(n_districts, dtype='float32')
