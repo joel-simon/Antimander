@@ -7,7 +7,7 @@ from state import State
 import districts
 import mutation
 from constraints import fix_pop_equality
-from metrics import compactness, efficiency_gap
+from metrics import compactness, efficiency_gap, competitiveness
 
 n_districts = 5
 state = State.makeRandom(200)
@@ -44,10 +44,29 @@ mutate = True
 draw_districts(districts, state, colors)
 
 
+def C(state, districts, n_districts):
+    tile_populations = state.tile_populations
+    dist_pop = np.zeros((n_districts, 2) , dtype='float32')
+    max_margin = 0.0
+
+    for ti in range(state.n_tiles):
+        dist_pop[districts[ti], 0] += tile_populations[ti, 0]
+        dist_pop[districts[ti], 1] += tile_populations[ti, 1]
+    print(dist_pop)
+    for di in range(n_districts):
+        margin = abs(dist_pop[di, 0] - dist_pop[di, 1]) / (dist_pop[di, 0] + dist_pop[di, 1])
+        max_margin = margin if (margin > max_margin) else max_margin
+
+    return max_margin
 
 while True:
     if mutate:
-        mutation.mutate(districts, n_districts, state, 0.01, pop_min, pop_max)
+        d2 = districts.copy()
+        mutation.mutate(d2, n_districts, state, 0.01, pop_min, pop_max)
+        if competitiveness(state, d2, n_districts) < competitiveness(state, districts, n_districts):
+            districts = d2
+            print(competitiveness(state, d2, n_districts), C(state, d2, n_districts))
+
         draw_districts(districts, state, colors)
     for event in pygame.event.get():
         if event.type == pygame.KEYDOWN:

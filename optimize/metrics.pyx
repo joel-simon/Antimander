@@ -43,23 +43,43 @@ cpdef float compactness(state, int[:] districts, int n_districts) except *:
 
     return np.mean(distances) / sqrt(state.n_tiles)
 
-cpdef float efficiency_gap(state, int[:] districts, int n_districts) except *:
-    cdef int total_votes      = state.tile_populations.sum()
-    cdef int[:, :] dist_pop   = np.zeros((n_districts, 2) , dtype='i')
-    cdef int[:, :] lost_votes = np.zeros((n_districts, 2), dtype='i')
+cpdef float competitiveness(state, int[:] districts, int n_districts) except *:
     cdef int[:,:] tile_populations = state.tile_populations
-    cdef int ti, di
+    cdef float[:, :] dist_pop = np.zeros((n_districts, 2) , dtype='float32')
+    cdef float margin
+    cdef float max_margin = 0.0
+    cdef int di, ti
 
     for ti in range(state.n_tiles):
         dist_pop[districts[ti], 0] += tile_populations[ti, 0]
         dist_pop[districts[ti], 1] += tile_populations[ti, 1]
 
     for di in range(n_districts):
+        margin = abs(dist_pop[di, 0] - dist_pop[di, 1]) / (dist_pop[di, 0] + dist_pop[di, 1])
+        if margin > max_margin:
+            max_margin = margin
+
+    return max_margin
+
+
+cpdef float efficiency_gap(state, int[:] districts, int n_districts) except *:
+    cdef int total_votes      = state.tile_populations.sum()
+    cdef int[:, :] dist_pop   = np.zeros((n_districts, 2) , dtype='i')
+    cdef int[:, :] lost_votes = np.zeros((n_districts, 2), dtype='i')
+    cdef int[:,:] tile_populations = state.tile_populations
+    cdef int ti, di, avg_pop
+
+    for ti in range(state.n_tiles):
+        dist_pop[districts[ti], 0] += tile_populations[ti, 0]
+        dist_pop[districts[ti], 1] += tile_populations[ti, 1]
+
+    for di in range(n_districts):
+        avg_pop = <int>((dist_pop[di, 0]+dist_pop[di, 1])*0.5)
         if dist_pop[di,  0] > dist_pop[di, 1]:
-            lost_votes[di, 0] += dist_pop[di, 0] - <int>((dist_pop[di, 0]+dist_pop[di, 1])*0.5)
+            lost_votes[di, 0] += dist_pop[di, 0] - avg_pop
             lost_votes[di, 1] += dist_pop[di, 1]
         else:
-            lost_votes[di, 1] += dist_pop[di, 1] - <int>((dist_pop[di, 0]+dist_pop[di, 1])*0.5)
+            lost_votes[di, 1] += dist_pop[di, 1] - avg_pop
             lost_votes[di, 0] += dist_pop[di, 0]
 
     cdef int total_lost = 0

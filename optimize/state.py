@@ -27,8 +27,8 @@ class State:
             self.neighbour_graph.append(ng)
 
 
-    def areTilesNeighbours(self, tile_idx_1, tile_idx_2):
-        return any(x == tile_idx_2 for x in self.tile_neighbours[tile_idx_1])
+    # def areTilesNeighbours(self, tile_idx_1, tile_idx_2):
+    #     return any(x == tile_idx_2 for x in self.tile_neighbours[tile_idx_1])
 
     @classmethod
     def makeRandom(cls, n_tiles=100, n_classes=2, seed=None):

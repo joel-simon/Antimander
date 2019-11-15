@@ -16,8 +16,7 @@
         }
         #pareto_container {
             width: 40vw;
-            top:0px;
-            /*height: 100%;*/
+            top: 0px;
             position: fixed;
         }
         #partition_container {
@@ -30,10 +29,33 @@
         #partition_text {
             width: 100%;
         }
+        #metric_dropdowns {
+            /*border: 1px solid black;*/
+        }
+        button {
+            /*background-color: #4CAF50;*/
+            background-color: white; /* Green */
+            border: none;
+            color: black;
+            padding: 6px 12px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            cursor: pointer;
+            outline: none;
+        }
+        .selected {
+            background-color: #4CAF50;
+        }
     </style>
 </head>
 <body>
     <div id=pareto_container>
+        <div>
+            <div id='metric_option_a'></div>
+            <div id='metric_option_b'></div>
+        </div>
         <canvas id="pareto_front" width=400px height=400px></canvas>
     </div>
     <div id=partition_container>
