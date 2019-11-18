@@ -13,14 +13,15 @@ const metrics_a = document.getElementById('metric_option_a')
 const metrics_b = document.getElementById('metric_option_b')
 let chart
 
+function sum(arr) { return arr.reduce((a, b) => a+b) }
+
+
 function update_text(div: HTMLElement, data, p_idx: number, colors: string[]) {
     const { n_districts, state, solutions, metrics_data } = data
     // const { lost_votes } = data
     const party_1 = new Array(n_districts).fill(0)
     const party_2 = new Array(n_districts).fill(0)
-
     const partition = solutions[p_idx]
-    console.log(data);
     partition.forEach((di:number, tile_idx:number) => {
         party_1[di] += state.tile_populations[tile_idx][0]
         party_2[di] += state.tile_populations[tile_idx][1]
@@ -32,21 +33,35 @@ function update_text(div: HTMLElement, data, p_idx: number, colors: string[]) {
     const table_data = Array(n_districts).fill(0).map((_, idx ) => {
         const win_margin = Math.abs(party_1[idx] - party_2[idx]) / (party_1[idx] + party_2[idx])
         return {
-            'population': party_1[idx] + party_2[idx],
-            // 'party1': party_1[idx],
-            // 'party2': party_2[idx],
-            'lost_votes': metrics_data.lost_votes[p_idx][idx][0] + metrics_data.lost_votes[p_idx][idx][1],
-            // 'lost_votes_p1': data.metrics_data.lost_votes[p_idx][idx][0],
-            // 'lost_votes_p2': data.metrics_data.lost_votes[p_idx][idx][1],
+            // 'pop': party_1[idx] + party_2[idx],
+            'p1': party_1[idx],
+            'p2': party_2[idx],
+
+            'lost_p1': metrics_data.lost_votes[p_idx][idx][0],
+            'lost_p2': metrics_data.lost_votes[p_idx][idx][1],
+            'lost_votes': Math.abs(metrics_data.lost_votes[p_idx][idx][0] - metrics_data.lost_votes[p_idx][idx][1]),
             'win_margin': (100*win_margin).toFixed(2)+'%'
         }
     })
+    // console.log(metrics_data.lost_votes[p_idx]);
+    const total_lost_p1 = sum(metrics_data.lost_votes[p_idx].map(a => a[0]))
+    const total_lost_p2 = sum(metrics_data.lost_votes[p_idx].map(a => a[1]))
+
+
 
     generateTable(table, table_data)
     table.querySelectorAll('tbody tr').forEach((row:HTMLElement, idx) => {
         // console.log(row, idx);
         row.style.color = colors[idx]
     })
+
+    const total = sum(party_1) + sum(party_2)
+    // console.log(total_lost_p1 , total_lost_p2, total);
+    // console.log(Math.abs(total_lost_p1 - total_lost_p2) / total);
+    const p = document.createElement('p')
+    p.innerHTML = `Lost votes party 1: ${total_lost_p1} <br> Lost votes party 2: ${total_lost_p2}`
+    // p.style.color = colors[i]
+    table.appendChild(p)
     // // for (let i = 0; i < data.n_districts; i++) {
     //     const p = document.createElement('p')
     //     p.innerHTML = `${district_voters[i][0]} | ${district_voters[i][1]}`
@@ -85,7 +100,7 @@ function draw_ui(data) {
     metrics_b.children[1].classList.add('selected')
 }
 
-fetch('data/rundata.json').
+fetch('data/2/rundata.json').
     then(r => r.json()).
     then(data => {
         const colors: string[] = Array(data.n_districts).fill(0).map(randomColor)

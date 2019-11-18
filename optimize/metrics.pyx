@@ -90,12 +90,13 @@ cpdef int[:, :] lost_votes(state, int[:] districts, int n_districts) except *:
     return lost_votes
 
 cpdef float efficiency_gap(state, int[:] districts, int n_districts) except *:
-    cdef float total_lost = 0
-    cdef int total_votes = state.tile_populations.sum()
+    cdef float lost_a = 0
+    cdef float lost_b = 0
     cdef int[:,:] lv = lost_votes(state, districts, n_districts)
     for di in range(n_districts):
-        total_lost += abs(lv[di, 0] - lv[di, 1])
-    cdef float score = total_lost / total_votes
+        lost_a += lv[di, 0]
+        lost_b += lv[di, 1]
+    cdef float score = abs(lost_a - lost_b) / state.population
     return score
 
 ################################################################################

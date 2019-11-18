@@ -19853,47 +19853,155 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const randomColor = require("randomColor");
 const pareto_front_chart_1 = require("./pareto_front_chart");
 const draw_1 = require("./draw");
+const make_dom_1 = require("./make_dom");
 const canvas_pf = document.getElementById('pareto_front');
 const ctx_pf = canvas_pf.getContext('2d');
 const canvas_partition = document.getElementById('partition');
 const ctx_partition = canvas_partition.getContext('2d');
 const div_text = document.getElementById('partition_text');
+const metrics_a = document.getElementById('metric_option_a');
+const metrics_b = document.getElementById('metric_option_b');
+let chart;
 function update_text(div, data, p_idx, colors) {
-    // const {map:TileMap = data.map, p: Partition
-    div.innerHTML = '';
-    const district_voters = new Array(data.n_districts).fill(0).map(() => [0, 0]);
-    const partition = data.solutions[p_idx];
-    partition.forEach((district_idx, tile_idx) => {
-        district_voters[district_idx][0] += data.map.tile_populations[tile_idx][0];
-        district_voters[district_idx][1] += data.map.tile_populations[tile_idx][1];
+    const { n_districts, state, solutions, metrics_data } = data;
+    // const { lost_votes } = data
+    const party_1 = new Array(n_districts).fill(0);
+    const party_2 = new Array(n_districts).fill(0);
+    const partition = solutions[p_idx];
+    console.log(data);
+    partition.forEach((di, tile_idx) => {
+        party_1[di] += state.tile_populations[tile_idx][0];
+        party_2[di] += state.tile_populations[tile_idx][1];
     });
-    for (let i = 0; i < data.n_districts; i++) {
-        const p = document.createElement('p');
-        p.innerHTML = `${district_voters[i][0]} | ${district_voters[i][1]}`;
-        p.style.color = colors[i];
-        div.appendChild(p);
-    }
+    const table = document.getElementById('info_table');
+    table.innerHTML = '';
+    const table_data = Array(n_districts).fill(0).map((_, idx) => {
+        const win_margin = Math.abs(party_1[idx] - party_2[idx]) / (party_1[idx] + party_2[idx]);
+        return {
+            'population': party_1[idx] + party_2[idx],
+            // 'party1': party_1[idx],
+            // 'party2': party_2[idx],
+            'lost_votes': metrics_data.lost_votes[p_idx][idx][0] + metrics_data.lost_votes[p_idx][idx][1],
+            // 'lost_votes_p1': data.metrics_data.lost_votes[p_idx][idx][0],
+            // 'lost_votes_p2': data.metrics_data.lost_votes[p_idx][idx][1],
+            'win_margin': (100 * win_margin).toFixed(2) + '%'
+        };
+    });
+    make_dom_1.generateTable(table, table_data);
+    table.querySelectorAll('tbody tr').forEach((row, idx) => {
+        // console.log(row, idx);
+        row.style.color = colors[idx];
+    });
+    // // for (let i = 0; i < data.n_districts; i++) {
+    //     const p = document.createElement('p')
+    //     p.innerHTML = `${district_voters[i][0]} | ${district_voters[i][1]}`
+    //     p.style.color = colors[i]
+    //     div.appendChild(p)
+    // }
 }
-fetch('data/New Folder With Items/rundata.json').
+function update_pareto_plot(data) {
+    const idx1 = +metrics_a.querySelector('.selected').dataset.idx;
+    const idx2 = +metrics_b.querySelector('.selected').dataset.idx;
+    pareto_front_chart_1.update_chart(chart, data.values, data.metrics, idx1, idx2);
+}
+function draw_ui(data) {
+    data.metrics.forEach((metric, idx) => {
+        const option_a = document.createElement('button');
+        option_a.innerHTML = metric;
+        option_a.dataset.idx = idx;
+        const option_b = option_a.cloneNode(true);
+        metrics_a.append(option_a);
+        metrics_b.append(option_b);
+        option_a.onclick = () => {
+            metrics_a.querySelector('.selected').classList.remove('selected');
+            option_a.classList.add('selected');
+            update_pareto_plot(data);
+        };
+        option_b.onclick = () => {
+            metrics_b.querySelector('.selected').classList.remove('selected');
+            option_b.classList.add('selected');
+            update_pareto_plot(data);
+        };
+    });
+    metrics_a.children[0].classList.add('selected');
+    metrics_b.children[1].classList.add('selected');
+}
+fetch('data/rundata.json').
     then(r => r.json()).
     then(data => {
     const colors = Array(data.n_districts).fill(0).map(randomColor);
     // const m: TileMap = data.map
     // console.log(data)
-    draw_1.draw_partition(ctx_partition, data.map, data.solutions[0], colors, 400);
-    update_text(div_text, data, 0, colors);
-    pareto_front_chart_1.make_chart({
+    const chart_config = {
         onHover: p_i => {
-            draw_1.draw_partition(ctx_partition, data.map, data.solutions[p_i], colors, 400);
+            draw_1.draw_partition(ctx_partition, data.state, data.solutions[p_i], colors, 400);
             update_text(div_text, data, p_i, colors);
         }
-    }, ctx_pf, data.values, 0, 1, ['Compactness', 'Efficiency Gap']);
+    };
+    chart = pareto_front_chart_1.make_chart(chart_config, ctx_pf, data.values, 1, 0, data.metrics);
+    draw_ui(data);
+    draw_1.draw_partition(ctx_partition, data.state, data.solutions[0], colors, 400);
+    update_text(div_text, data, 0, colors);
+    // update_pareto_plot(data, colors)
 });
 
-},{"./draw":4,"./pareto_front_chart":6,"randomColor":3}],6:[function(require,module,exports){
+},{"./draw":4,"./make_dom":6,"./pareto_front_chart":7,"randomColor":3}],6:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+function generateTableHead(table, data) {
+    let thead = table.createTHead();
+    let row = thead.insertRow();
+    for (let key of data) {
+        let th = document.createElement("th");
+        let text = document.createTextNode(key);
+        th.appendChild(text);
+        row.appendChild(th);
+    }
+}
+function generateTableBody(table, data) {
+    for (let element of data) {
+        let row = table.insertRow();
+        for (let key in element) {
+            let cell = row.insertCell();
+            let text = document.createTextNode(element[key]);
+            cell.appendChild(text);
+        }
+    }
+}
+function generateTable(table, data) {
+    const headers = Object.keys(data[0]);
+    console.log({ headers });
+    generateTableBody(table, data);
+    generateTableHead(table, headers);
+}
+exports.generateTable = generateTable;
+
+},{}],7:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const chart_js_1 = require("chart.js");
+function update_chart(chart, values, names, idx1, idx2) {
+    // const slider_values = sliders.map(s => parseFloat(s.value))
+    // const values_filtered = values.map(v => {
+    //     for (var i = 0; i < v.length; i++) {
+    //         if (v[i] < slider_values[i]) return false
+    //     }
+    //     return true
+    // })
+    chart.data.datasets[0].data.forEach((v, i) => {
+        // if (!values_filtered[i]) {
+        //     v.x = null
+        //     v.y = null
+        // } else {
+        v.x = values[i][idx1];
+        v.y = values[i][idx2];
+        // }
+    });
+    chart.options.scales.xAxes[0].scaleLabel.labelString = names[idx1];
+    chart.options.scales.yAxes[0].scaleLabel.labelString = names[idx2];
+    chart.update();
+}
+exports.update_chart = update_chart;
 function make_chart(config, chart_ctx, values, idx1, idx2, names) {
     const data = values.map(v => ({ x: v[idx1], y: v[idx2] }));
     const options = {

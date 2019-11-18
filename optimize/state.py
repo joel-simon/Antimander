@@ -9,6 +9,7 @@ class State:
     def __init__(self, tile_populations, tile_vertices, tile_neighbours, tile_boundaries, tile_edges):
         assert tile_populations.shape[1] == 2 #Only support 2-parties for now.
         self.n_tiles = len(tile_populations)
+        self.population = int(tile_populations.sum())
         self.tile_populations = tile_populations
         self.tile_populations_tot = tile_populations.sum(axis=1).astype('int32')
         self.tile_vertices = tile_vertices
@@ -47,5 +48,6 @@ class State:
             'tile_populations': self.tile_populations.tolist(),
             'tile_vertices': self.tile_vertices,
             'tile_neighbours': self.tile_neighbours,
-            'tile_edges': self.tile_edges
+            'tile_edges': self.tile_edges,
+            'population': self.population
         }

@@ -21,7 +21,6 @@ function generateTableBody(table, data) {
 
 export function generateTable(table, data) {
     const headers = Object.keys(data[0])
-    console.log({headers});
     generateTableBody(table, data)
     generateTableHead(table, headers)
 }
