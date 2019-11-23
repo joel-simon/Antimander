@@ -3,11 +3,16 @@
 <head>
     <meta http-equiv="content-type" content="text/html; charset=utf-8" />
     <title>Test</title>
-    <script src=//cdnjs.cloudflare.com/ajax/libs/seedrandom/2.3.10/seedrandom.min.js>
-    </script>
+
+    <script src=//cdnjs.cloudflare.com/ajax/libs/seedrandom/2.3.10/seedrandom.min.js></script>
+    <link href="/style/slider.css" rel="stylesheet" type="text/css" />
 
     <script src="./bundle.js" type="module"></script>
     <style>
+        * {
+            font-family: 'Avenir', sans-serif;
+            box-sizing: border-box;
+        }
         body {
             text-align: center;
         }
@@ -17,14 +22,16 @@
         #pareto_container {
             width: 40vw;
             top: 0px;
-            position: fixed;
+            float: left;
+            margin: 5px;
         }
         #partition_container {
             width: 40vw;
             top:0px;
             left: 40vw;
             height: 100vh;
-            position: fixed;
+            float: left;
+            margin: 5px;
         }
         #info_table {
             width: 100%;
@@ -48,6 +55,11 @@
         .selected {
             background-color: #4CAF50;
         }
+        .slidecontainer {
+            width: calc(33% - 4px);
+            margin: 2px;
+            float: left;
+        }
     </style>
 </head>
 <body>
@@ -57,11 +69,12 @@
             <div id='metric_option_b'></div>
         </div>
         <canvas id="pareto_front" width=400px height=400px></canvas>
+        <div id=sliders_container></div>
     </div>
     <div id=partition_container>
         <canvas id="partition" width=400px height=400px/></canvas>
-        <table id='info_table'>
-        </table>
+        <table id='info_table'></table>
+        <p id='lost_votes_summary'> </p>
     </div>
 
 </body>
