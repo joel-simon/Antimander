@@ -17,13 +17,16 @@ let chart
 function sum(arr) { return arr.reduce((a, b) => a+b) }
 
 function update_text(div: HTMLElement, data, p_idx: number, colors: string[]) {
-    const { n_districts, state, solutions, metrics_data } = data
+    const { state, solutions, values, metrics_data } = data
+    const { n_districts, metrics } = data.config
+
+    // const { n_districts, state, solutions, metrics_data } = data
     const party_1 = new Array(n_districts).fill(0)
     const party_2 = new Array(n_districts).fill(0)
     const partition = solutions[p_idx]
     partition.forEach((di:number, tile_idx:number) => {
-        party_1[di] += state.tile_populations[tile_idx][0]
-        party_2[di] += state.tile_populations[tile_idx][1]
+        party_1[di] += state.tract_populations[tile_idx][0]
+        party_2[di] += state.tract_populations[tile_idx][1]
     })
     const table = document.getElementById('info_table')
     table.innerHTML = ''
@@ -50,6 +53,8 @@ function update_text(div: HTMLElement, data, p_idx: number, colors: string[]) {
 }
 
 function update_pareto_plot(data) {
+    const { state, solutions, values } = data
+    const { n_districts, metrics } = data.config
     const idx1 = +(metrics_a.querySelector('.selected') as HTMLElement).dataset.idx
     const idx2 = +(metrics_b.querySelector('.selected') as HTMLElement).dataset.idx
     const filters = [ ]
@@ -58,11 +63,13 @@ function update_pareto_plot(data) {
         const value = parseFloat(slider.querySelector('input').value) / 100
         filters.push(value)
     }
-    update_chart(chart, data.values, data.metrics, idx1, idx2, filters)
+    update_chart(chart, values, metrics, idx1, idx2, filters)
 }
 
 function draw_ui(data) {
-    data.metrics.forEach((metric:string, idx) => {
+    const { state, solutions, values } = data
+    const { n_districts, metrics } = data.config
+    metrics.forEach((metric:string, idx) => {
         const option_a:HTMLButtonElement = document.createElement('button')
         option_a.innerHTML = metric
         option_a.dataset.idx = idx
@@ -89,18 +96,24 @@ function draw_ui(data) {
     metrics_b.children[1].classList.add('selected')
 }
 
-fetch('data/rundata.json').
+fetch('data/rundata_2.json').
     then(r => r.json()).
     then(data => {
-        const colors: string[] = Array(data.n_districts).fill(0).map(randomColor)
+        // console.log(data)
+        const { state, solutions, values } = data
+        const { n_districts, metrics } = data.config
+
+        console.log(solutions);
+
+        const colors: string[] = Array(n_districts).fill(0).map(randomColor)
         const chart_config = {
             onHover: p_i => {
-                draw_partition(ctx_partition, data.state, data.solutions[p_i], colors, 400)
+                draw_partition(ctx_partition, state, solutions[p_i], colors, 400)
                 update_text(div_text, data, p_i, colors)
             }
         }
-        chart = make_chart(chart_config, ctx_pf, data.values, 1, 0, data.metrics )
+        chart = make_chart(chart_config, ctx_pf, values, 1, 0, metrics )
         draw_ui(data)
-        draw_partition(ctx_partition, data.state, data.solutions[0], colors, 400)
+        draw_partition(ctx_partition, state, solutions[0], colors, 400)
         update_text(div_text, data, 0, colors)
     })

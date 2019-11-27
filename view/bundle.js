@@ -19861,14 +19861,14 @@ const ctx_partition = canvas_partition.getContext('2d');
 const div_text = document.getElementById('partition_text');
 const metrics_a = document.getElementById('metric_option_a');
 const metrics_b = document.getElementById('metric_option_b');
+const sliders_container = document.getElementById('sliders_container');
 let chart;
+function sum(arr) { return arr.reduce((a, b) => a + b); }
 function update_text(div, data, p_idx, colors) {
     const { n_districts, state, solutions, metrics_data } = data;
-    // const { lost_votes } = data
     const party_1 = new Array(n_districts).fill(0);
     const party_2 = new Array(n_districts).fill(0);
     const partition = solutions[p_idx];
-    console.log(data);
     partition.forEach((di, tile_idx) => {
         party_1[di] += state.tile_populations[tile_idx][0];
         party_2[di] += state.tile_populations[tile_idx][1];
@@ -19878,31 +19878,34 @@ function update_text(div, data, p_idx, colors) {
     const table_data = Array(n_districts).fill(0).map((_, idx) => {
         const win_margin = Math.abs(party_1[idx] - party_2[idx]) / (party_1[idx] + party_2[idx]);
         return {
-            'population': party_1[idx] + party_2[idx],
-            // 'party1': party_1[idx],
-            // 'party2': party_2[idx],
-            'lost_votes': metrics_data.lost_votes[p_idx][idx][0] + metrics_data.lost_votes[p_idx][idx][1],
-            // 'lost_votes_p1': data.metrics_data.lost_votes[p_idx][idx][0],
-            // 'lost_votes_p2': data.metrics_data.lost_votes[p_idx][idx][1],
+            'p1': party_1[idx],
+            'p2': party_2[idx],
+            'lost_p1': metrics_data.lost_votes[p_idx][idx][0],
+            'lost_p2': metrics_data.lost_votes[p_idx][idx][1],
+            'lost_votes': Math.abs(metrics_data.lost_votes[p_idx][idx][0] - metrics_data.lost_votes[p_idx][idx][1]),
             'win_margin': (100 * win_margin).toFixed(2) + '%'
         };
     });
+    const total_lost_p1 = sum(metrics_data.lost_votes[p_idx].map(a => a[0]));
+    const total_lost_p2 = sum(metrics_data.lost_votes[p_idx].map(a => a[1]));
     make_dom_1.generateTable(table, table_data);
     table.querySelectorAll('tbody tr').forEach((row, idx) => {
-        // console.log(row, idx);
         row.style.color = colors[idx];
     });
-    // // for (let i = 0; i < data.n_districts; i++) {
-    //     const p = document.createElement('p')
-    //     p.innerHTML = `${district_voters[i][0]} | ${district_voters[i][1]}`
-    //     p.style.color = colors[i]
-    //     div.appendChild(p)
-    // }
+    const total = sum(party_1) + sum(party_2);
+    const p = document.getElementById('lost_votes_summary');
+    p.innerHTML = `Lost votes party 1: ${total_lost_p1} <br> Lost votes party 2: ${total_lost_p2}`;
 }
 function update_pareto_plot(data) {
     const idx1 = +metrics_a.querySelector('.selected').dataset.idx;
     const idx2 = +metrics_b.querySelector('.selected').dataset.idx;
-    pareto_front_chart_1.update_chart(chart, data.values, data.metrics, idx1, idx2);
+    const filters = [];
+    for (const slider of sliders_container.children) {
+        const name = slider.dataset.name;
+        const value = parseFloat(slider.querySelector('input').value) / 100;
+        filters.push(value);
+    }
+    pareto_front_chart_1.update_chart(chart, data.values, data.metrics, idx1, idx2, filters);
 }
 function draw_ui(data) {
     data.metrics.forEach((metric, idx) => {
@@ -19922,6 +19925,11 @@ function draw_ui(data) {
             option_b.classList.add('selected');
             update_pareto_plot(data);
         };
+        const slider = make_dom_1.makeSlider(metric);
+        sliders_container.append(slider);
+        slider.querySelector('input').oninput = () => {
+            update_pareto_plot(data);
+        };
     });
     metrics_a.children[0].classList.add('selected');
     metrics_b.children[1].classList.add('selected');
@@ -19930,8 +19938,6 @@ fetch('data/rundata.json').
     then(r => r.json()).
     then(data => {
     const colors = Array(data.n_districts).fill(0).map(randomColor);
-    // const m: TileMap = data.map
-    // console.log(data)
     const chart_config = {
         onHover: p_i => {
             draw_1.draw_partition(ctx_partition, data.state, data.solutions[p_i], colors, 400);
@@ -19942,7 +19948,6 @@ fetch('data/rundata.json').
     draw_ui(data);
     draw_1.draw_partition(ctx_partition, data.state, data.solutions[0], colors, 400);
     update_text(div_text, data, 0, colors);
-    // update_pareto_plot(data, colors)
 });
 
 },{"./draw":4,"./make_dom":6,"./pareto_front_chart":7,"randomColor":3}],6:[function(require,module,exports){
@@ -19968,34 +19973,56 @@ function generateTableBody(table, data) {
         }
     }
 }
+function string2dom(s) {
+    const dom = new DOMParser().parseFromString(s, "text/html");
+    return dom.body.firstChild;
+}
 function generateTable(table, data) {
     const headers = Object.keys(data[0]);
-    console.log({ headers });
     generateTableBody(table, data);
     generateTableHead(table, headers);
 }
 exports.generateTable = generateTable;
+function makeSlider(name) {
+    return string2dom(`
+    <div class="slidecontainer" data-name="${name}">
+        <p>${name}</p>
+        <input class="slider" id="myRange" type="range" min="0" max="100" value="0" step="any" />
+    </div>
+    `);
+}
+exports.makeSlider = makeSlider;
 
 },{}],7:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const chart_js_1 = require("chart.js");
-function update_chart(chart, values, names, idx1, idx2) {
-    // const slider_values = sliders.map(s => parseFloat(s.value))
-    // const values_filtered = values.map(v => {
-    //     for (var i = 0; i < v.length; i++) {
-    //         if (v[i] < slider_values[i]) return false
-    //     }
-    //     return true
-    // })
+function update_chart(chart, values, names, idx1, idx2, filters) {
+    const min_max = [];
+    for (let i = 0; i < values[0].length; ++i) {
+        const v = values.map(v => v[i]);
+        min_max.push([Math.min(...v), Math.max(...v)]);
+    }
+    const thresholds = min_max.map(([min, max], idx) => {
+        return min + (max - min) * (1.0 - filters[idx]);
+    });
+    // console.log(min_max);
+    const values_filtered = values.map(v => {
+        for (let i = 0; i < v.length; i++) {
+            if (v[i] > thresholds[i])
+                return false;
+        }
+        return true;
+    });
     chart.data.datasets[0].data.forEach((v, i) => {
-        // if (!values_filtered[i]) {
-        //     v.x = null
-        //     v.y = null
-        // } else {
-        v.x = values[i][idx1];
-        v.y = values[i][idx2];
-        // }
+        if (!values_filtered[i]) {
+            v.x = null;
+            v.y = null;
+        }
+        else {
+            v.x = values[i][idx1];
+            v.y = values[i][idx2];
+        }
     });
     chart.options.scales.xAxes[0].scaleLabel.labelString = names[idx1];
     chart.options.scales.yAxes[0].scaleLabel.labelString = names[idx2];
@@ -20004,57 +20031,60 @@ function update_chart(chart, values, names, idx1, idx2) {
 exports.update_chart = update_chart;
 function make_chart(config, chart_ctx, values, idx1, idx2, names) {
     const data = values.map(v => ({ x: v[idx1], y: v[idx2] }));
-    const options = {
-        title: {
-            display: false,
-            text: ''
-        },
-        responsive: true,
-        aspectRatio: 1.0,
-        // maintainAspectRatio: false,
-        tooltips: {
-            callbacks: {}
-        },
-        scales: {
-            xAxes: [{
-                    type: 'linear',
-                    // position: 'bottom',
-                    gridLines: { display: false },
-                    scaleLabel: {
-                        display: true,
-                        labelString: names[idx1]
-                    }
-                }],
-            yAxes: [{
-                    type: 'linear',
-                    // position: 'bottom',
-                    gridLines: { display: false },
-                    scaleLabel: {
-                        display: true,
-                        labelString: names[idx2]
-                    }
-                }]
-        },
-        onClick(evt, [item]) {
-            if (item && config.onClick) {
-                config.onClick(item._index);
-            }
-        },
-        onHover(evt, [item]) {
-            if (item && config.onHover) {
-                config.onHover(item._index);
-            }
-        },
-    };
     return new chart_js_1.Chart(chart_ctx, {
         type: 'scatter',
         data: {
             datasets: [{
                     label: '',
-                    data: data
+                    data: data,
+                    fill: false
                 }]
         },
-        options
+        options: {
+            title: {
+                display: false,
+                text: ''
+            },
+            legend: {
+                display: false
+            },
+            responsive: true,
+            aspectRatio: 1.0,
+            // maintainAspectRatio: false,
+            tooltips: {
+                callbacks: {}
+            },
+            scales: {
+                xAxes: [{
+                        type: 'linear',
+                        // position: 'bottom',
+                        gridLines: { display: false },
+                        scaleLabel: {
+                            display: true,
+                            labelString: names[idx1]
+                        }
+                    }],
+                yAxes: [{
+                        type: 'linear',
+                        // position: 'bottom',
+                        gridLines: { display: false },
+                        scaleLabel: {
+                            display: true,
+                            labelString: names[idx2]
+                        }
+                    }]
+            },
+            onClick(evt, [item]) {
+                if (item && config.onClick) {
+                    config.onClick(item._index);
+                }
+            },
+            onHover(evt, [item]) {
+                if (item && config.onHover) {
+                    config.onHover(item._index);
+                }
+            },
+        }
     });
 }
 exports.make_chart = make_chart;
