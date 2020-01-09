@@ -11,17 +11,24 @@ function polygon(ctx, points: number[][], scale:number=1) {
 }
 
 export function draw_partition(
+    canvas: HTMLCanvasElement,
     ctx: any,
     map: TileMap,
     partition: Partition,
-    colors: string[],
-    scale: number=1
+    colors: string[]
 ) {
+    const [ xmin, ymin, xmax, ymax ] = map.bbox
     partition.forEach((district_idx:number, tile_idx:number) => {
         ctx.lineWidth = 1
         ctx.fillStyle = colors[district_idx]
         ctx.strokeStyle = 'lightgray'//colors[district_idx]
-        polygon(ctx, map.tract_vertices[tile_idx], scale)
+
+        const scale = Math.min(canvas.width/(xmax-xmin), canvas.height/(ymax-ymin))
+
+        polygon(ctx, map.vertices[tile_idx].map(([x, y]) => {
+            return [(x-xmin) * scale, canvas.height - (y-ymin) * scale]
+        }))
+
         ctx.fill()
         ctx.stroke()
 

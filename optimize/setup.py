@@ -3,7 +3,6 @@ from distutils.core import setup
 from setuptools import find_packages, Extension
 from Cython.Build import cythonize
 from Cython.Distutils import build_ext
-
 import numpy as np
 
 def find_pyx(path='.'):
@@ -12,18 +11,12 @@ def find_pyx(path='.'):
         for fname in filenames:
             if fname.endswith('.pyx'):
                 pyx_files.append(
-                    # os.path.join(root, fname)
                     Extension(
-                        'src/' + fname.split('.')[0],
+                        'src.' + fname.split('.')[0],
                         [os.path.join(root, fname)]
                     )
                 )
     return pyx_files
-
-# print('???')
-# print(find_pyx())
-# help(cythonize)
-# exit()
 
 setup(
     name='Multi Objective District Optimization.',
@@ -36,7 +29,6 @@ setup(
     # packages=find_packages(),
     cmdclass = {'build_ext': build_ext},
     # ext_modules = find_pyx(),
-
     include_dirs=[np.get_include()]
 
 )

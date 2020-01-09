@@ -5,3 +5,5 @@ __pycache__/
 *.so
 *.c
 *.o
+view/data/
+optimize/data/

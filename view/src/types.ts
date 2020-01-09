@@ -7,9 +7,12 @@ export type TileEdge = {
 }
 
 export type TileMap = {
-    tract_vertices: number[][][],
-    tract_neighbours: number[][],
-    tract_populations: number[][],
-    // tract_edges: TileEdge[][]
+    vertices: number[][][],
+    neighbours: number[][],
+    populations: number[],
+    boundaries: number[],
+    voters: number[][],
+    population: number,
+    bbox: number[]
+    // tile_edges: TileEdge[][]
 }
-

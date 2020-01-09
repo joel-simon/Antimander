@@ -8,7 +8,9 @@ def dfs(partition, graph, visited, t_i):
 
 def can_lose(partition, map, n_districts, t_i):
     d_i = partition[t_i]
-    vis = { t_j: False for t_j in map.tile_neighbours[t_i] if partition[t_j] == d_i}
+    vis = { t_j: False for t_j in map.tile_neighbors[t_i] if partition[t_j] == d_i }
+    if len(vis) == 0:
+        return False
     fist_key = next(iter(vis.keys()))
-    dfs(partition, map.neighbour_graph[t_i], vis, fist_key)
+    dfs(partition, map.neighbor_graph[t_i], vis, fist_key)
     return all(vis.values())

@@ -19,16 +19,21 @@ function sum(arr) { return arr.reduce((a, b) => a+b) }
 function update_text(div: HTMLElement, data, p_idx: number, colors: string[]) {
     const { state, solutions, values, metrics_data } = data
     const { n_districts, metrics } = data.config
-
+    const ideal_pop = state.population / n_districts
     // const { n_districts, state, solutions, metrics_data } = data
     const party_1 = new Array(n_districts).fill(0)
     const party_2 = new Array(n_districts).fill(0)
+    const district_populations = new Array(n_districts).fill(0)
     const partition = solutions[p_idx]
+
     partition.forEach((di:number, tile_idx:number) => {
-        party_1[di] += state.tract_populations[tile_idx][0]
-        party_2[di] += state.tract_populations[tile_idx][1]
+        party_1[di] += state.voters[tile_idx][0]
+        party_2[di] += state.voters[tile_idx][1]
+        district_populations[di] += state.populations[tile_idx]
     })
+
     const table = document.getElementById('info_table')
+
     table.innerHTML = ''
     const table_data = Array(n_districts).fill(0).map((_, idx ) => {
         const win_margin = Math.abs(party_1[idx] - party_2[idx]) / (party_1[idx] + party_2[idx])
@@ -38,9 +43,12 @@ function update_text(div: HTMLElement, data, p_idx: number, colors: string[]) {
             'lost_p1': metrics_data.lost_votes[p_idx][idx][0],
             'lost_p2': metrics_data.lost_votes[p_idx][idx][1],
             'lost_votes': Math.abs(metrics_data.lost_votes[p_idx][idx][0] - metrics_data.lost_votes[p_idx][idx][1]),
-            'win_margin': (100*win_margin).toFixed(2)+'%'
+            'win_margin': (100*win_margin).toFixed(2)+'%',
+            'equality': (100*Math.abs(district_populations[idx] - ideal_pop)/ideal_pop).toFixed(2)+'%',
+            'pop': district_populations[idx],
         }
     })
+
     const total_lost_p1 = sum(metrics_data.lost_votes[p_idx].map(a => a[0]))
     const total_lost_p2 = sum(metrics_data.lost_votes[p_idx].map(a => a[1]))
     generateTable(table, table_data)
@@ -103,17 +111,17 @@ fetch('data/rundata_2.json').
         const { state, solutions, values } = data
         const { n_districts, metrics } = data.config
 
-        console.log(solutions);
+        console.log(state);
 
         const colors: string[] = Array(n_districts).fill(0).map(randomColor)
         const chart_config = {
             onHover: p_i => {
-                draw_partition(ctx_partition, state, solutions[p_i], colors, 400)
+                draw_partition(canvas_partition, ctx_partition, state, solutions[p_i], colors)
                 update_text(div_text, data, p_i, colors)
             }
         }
         chart = make_chart(chart_config, ctx_pf, values, 1, 0, metrics )
         draw_ui(data)
-        draw_partition(ctx_partition, state, solutions[0], colors, 400)
+        draw_partition(canvas_partition, ctx_partition, state, solutions[0], colors)
         update_text(div_text, data, 0, colors)
     })

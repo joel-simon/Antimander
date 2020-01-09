@@ -7,25 +7,34 @@ import random
 import numpy as np
 cimport numpy as np
 
-cpdef int[:] count_pop(state, int[:] partition, int n_districts) except *:
-    cdef int[:, :] tile_populations = state.tile_populations
-    cdef int[:] d_pop = np.zeros(n_districts , dtype='i')
+cpdef int[:] district_populations(state, int[:] districts, int n_districts) except *:
+    cdef int[:] tile_populations = state.tile_populations
+    cdef int[:] dist_pops = np.zeros(n_districts , dtype='i')
     cdef int ti
     for ti in range(state.n_tiles):
-        d_pop[partition[ti]] += tile_populations[ ti, 0 ]
-        d_pop[partition[ti]] += tile_populations[ ti, 1 ]
-    return d_pop
+        dist_pops[districts[ti]] += tile_populations[ ti ]
+    return dist_pops
+
+cpdef int[:,:] district_voters(state, int[:] districts, int n_districts) except *:
+    cdef int[:,:] tile_voters = state.tile_voters
+    cdef int[:,:] dist_voters = np.zeros((n_districts, 2) , dtype='i')
+    cdef int ti
+    for ti in range(state.n_tiles):
+        dist_voters[districts[ti], 0] += tile_voters[ti, 0]
+        dist_voters[districts[ti], 1] += tile_voters[ti, 1]
+    return dist_voters
 
 cpdef bint is_frontier(int[:] partition, state, int ti) except *:
     cdef int tj
     cdef int di = partition[ti]
-    for tj in state.tile_neighbours[ti]:
+    for tj in state.tile_neighbors[ti]:
         if partition[tj] != di:
             return True
     return False
 
 def make_random(state, n_districts):
-    seeds = random.sample(state.boundry_tiles, n_districts)
+    boundry_tiles = np.where(state.tile_boundaries)[0].tolist()
+    seeds = random.sample(boundry_tiles, n_districts)
     partition = np.full(state.n_tiles, -1, dtype='i')
     indxs = np.arange(0, state.n_tiles)
     n_empty = state.n_tiles - len(seeds)
@@ -39,7 +48,7 @@ def make_random(state, n_districts):
             if partition[t] != -1:
                 continue
             options = []
-            for t_other in state.tile_neighbours[t]:
+            for t_other in state.tile_neighbors[t]:
                 if partition[t_other] != -1:
                     options.append(t_other)
             if len(options):

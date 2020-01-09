@@ -11,69 +11,52 @@ class State:
     """ The sate is static and knows nothing about districts.
         It is a set of connected tiles.
     """
-    def __init__(self, tile_populations, tile_vertices, tile_neighbours, tile_boundaries, tile_edges):
-        assert tile_populations.shape[1] == 2 #Only support 2-parties for now.
-        self.n_tiles = len(tile_populations)
-        self.population = int(tile_populations.sum())
-        self.tile_populations = tile_populations
-        self.tile_populations_tot = tile_populations.sum(axis=1).astype('int32')
-        self.tile_vertices = tile_vertices
-        self.tile_neighbours = tile_neighbours
-        self.tile_boundaries = tile_boundaries
-        self.tile_edges = tile_edges
-        self.tile_centers = np.array([ poly.centroid(v) for v in tile_vertices ], dtype='float32')
-        self.boundry_tiles = np.where(tile_boundaries)[0].tolist()
-        # print(self.boundry_tiles)
-        # print(tile_boundaries)
-        #
-        # print(self.boundry_tiles)
-        # self.boundry_tiles = [ i for i in range(self.n_tiles) if self.tile_boundaries[i] ]
-        self.calculateNeighbourGraph()
+    def __init__( self, tile_data ):
+        self.n_tiles = len(tile_data['populations'])
+        self.tile_populations = np.array(tile_data['populations'], dtype='i')
+        self.tile_voters      = np.array(tile_data['voters'], dtype='i')
+        self.tile_vertices    = tile_data['vertices']
+        self.tile_neighbors   = tile_data['neighbors']
+        self.tile_boundaries  = np.array(tile_data['boundaries'], dtype='i')
+        self.population       = tile_data['population']
+        self.bbox             = tile_data['bbox']
+        self.tile_centers = np.array([ poly.centroid(v) for v in self.tile_vertices ], dtype='float32')
 
-    def calculateNeighbourGraph(self):
-        self.neighbour_graph = []
+        assert type(self.population) == int
+        assert self.tile_voters.shape == (self.n_tiles, 2) #Only support 2-parties for now.
+        assert self.tile_populations.shape == (self.n_tiles,)
+        assert self.tile_boundaries.shape  == (self.n_tiles,), self.tile_boundaries.shape
+        assert self.tile_centers.shape     == (self.n_tiles, 2)
+        assert len(self.tile_vertices) == self.n_tiles
+        assert len(self.tile_neighbors) == self.n_tiles
+        assert all(len(n) > 0 for n in self.tile_neighbors)
+
+        self.calculateneighborGraph()
+
+    def calculateneighborGraph(self):
+        self.neighbor_graph = []
         for i in range(self.n_tiles):
             ng = dict()
-            neighours = self.tile_neighbours[i]
+            neighours = self.tile_neighbors[i]
             for j in neighours:
-                ng[j] = [k for k in self.tile_neighbours[j] if k in neighours]
-            self.neighbour_graph.append(ng)
-
-    @classmethod
-    def makeRandom(cls, n_tiles=100, n_classes=2, seed=None):
-        from src.utils.voronoi import smoothedRandomVoronoi
-        cells = smoothedRandomVoronoi(n_tiles=n_tiles, steps=10, seed=seed)
-        tile_vertices = [ c['vertices'] for c in cells ]
-        tile_neighbours = [[ e['adjacent_cell'] for e in c['faces'] if e['adjacent_cell'] >= 0] for c in cells ]
-        tile_boundaries = [ any( e['adjacent_cell'] < 0 for e in c['faces']) for c in cells ]
-        tile_populations = np.random.randint(0, 10, size=(n_tiles, n_classes), dtype='int32')
-        tile_edges = [ c['faces'] for c in cells ]
-
-        return State(tile_populations, tile_vertices, tile_neighbours, tile_boundaries, tile_edges)
-
-    @classmethod
-    def fromFile(cls, filePath):
-        with open(filePath, 'r') as file:
-            state_data = json.load(file)
-        tile_vertices = state_data['tract_vertices']
-        tile_neighbours = state_data['tract_neighbours']
-        tile_boundaries = state_data['boundry_tracts']
-        tile_populations = np.random.randint(0, 10, size=(len(tile_vertices), 2), dtype='int32')
-        return State(tile_populations, tile_vertices, tile_neighbours, tile_boundaries, None)
+                ng[j] = [k for k in self.tile_neighbors[j] if k in neighours]
+            self.neighbor_graph.append(ng)
 
     def contract(self, seed=None):
+        """ Do Star contraction to cotnract the graph.
+            http://www.cs.cmu.edu/afs/cs/academic/class/15210-f12/www/lectures/lecture16.pdf
+        """
         if seed is not None: np.random.seed(seed)
-        """ Do a random coin flip for each vertex. """
+        # Do a random coin flip for each vertex.
         stars = np.random.randint(0, 2, size=self.n_tiles, dtype='uint8')
-        """ Store the idx of the newly created vertex this one will join into. """
+        # Store the idx of the newly created vertex this one will join into.
         to_join = np.zeros(self.n_tiles, dtype='int32')
-
-        """ For each vertex pick its star if not one. """
+        # For each non-star vertex pick a star neighbor.
         for i in range(self.n_tiles):
             if stars[i] == 1:
                 to_join[i] = i
             else:
-                options = [j for j in self.tile_neighbours[i] if stars[j]]
+                options = [ j for j in self.tile_neighbors[i] if stars[j] ]
                 if len(options) == 0:
                     stars[i] = 1
                     to_join[i] = i
@@ -85,32 +68,73 @@ class State:
             to_join[i] = stars2newidxs[idx]
 
         new_n_tiles = stars.sum()
-        tile_populations = np.zeros((new_n_tiles, 2), dtype='i')
-        tile_boundaries = np.zeros(new_n_tiles, dtype='i')
-        tile_vertices = [ [] for _ in range(new_n_tiles) ]
-        tile_neighbours = [ set() for _ in range(new_n_tiles) ]
+
+        tile_voters = np.zeros((new_n_tiles, 2), dtype='i')
+        tile_populations = np.zeros(new_n_tiles, dtype='i')
+        tile_boundaries  = np.zeros(new_n_tiles, dtype='i')
+        tile_vertices    = [ [] for _ in range(new_n_tiles) ]
+        tile_neighbors   = [ set() for _ in range(new_n_tiles) ]
 
         for i_from, i_to in enumerate(to_join):
             tile_populations[i_to] += self.tile_populations[i_from]
+            tile_voters[i_to] += self.tile_voters[i_from]
             if (self.tile_boundaries[i_from]):
                 tile_boundaries[i_to] = True
             tile_vertices[i_to].append(self.tile_vertices[ i_from ])
 
-            for j in self.tile_neighbours[i_from]:
+            for j in self.tile_neighbors[i_from]:
                 if to_join[j] != i_to:
-                    tile_neighbours[i_to].add(int(to_join[j])) # cast to int to make it jsonable
-
-        tile_neighbours = [list(tn) for tn in tile_neighbours]
-        tile_vertices = [ poly.union(poly_list)[0] for poly_list in tile_vertices ]
-        state = State(tile_populations, tile_vertices, tile_neighbours, tile_boundaries.tolist(), None)
+                    tile_neighbors[i_to].add(int(to_join[j])) # cast to int to make it jsonable
+        state = State({
+            'voters': tile_voters,
+            'populations': tile_populations,
+            'boundaries': tile_boundaries,
+            'vertices': [ poly.test(poly_list)[0] for poly_list in tile_vertices ],
+            'neighbors' : [ list(tn) for tn in tile_neighbors ],
+            # 'edges': None, #TODO
+            'population': self.population,
+            'bbox': self.bbox
+        })
         return state, to_join
+
+    @classmethod
+    def makeRandom(cls, n_tiles=100, n_parties=2, seed=None):
+        from src.utils.voronoi import smoothedRandomVoronoi
+        cells = smoothedRandomVoronoi(n_tiles=n_tiles, steps=10, seed=seed)
+        boundry_tiles = [ any( e['adjacent_cell'] < 0 for e in c['faces']) for c in cells ]
+        tile_boundaries = np.zeros(n_tiles, dtype='uint8')
+        tile_boundaries[ boundry_tiles ] = 1
+        tile_populations = np.random.randint(0, 1000, size=n_tiles, dtype='int32')
+        tile_voters = np.array([
+            (0.7 * 0.5 * np.random.rand(n_tiles) * tile_populations),
+            (0.7 * 0.5 * np.random.rand(n_tiles) * tile_populations)
+        ]).astype('int32').T
+        tile_data = {
+            'vertices': [ c['vertices'] for c in cells ],
+            'neighbors': [[ e['adjacent_cell'] for e in c['faces'] if e['adjacent_cell'] >= 0] for c in cells ],
+            'boundaries': tile_boundaries,
+            'populations': tile_populations,
+            'voters': tile_voters,
+            # 'edges': [ c['faces'] for c in cells ],
+            'bbox': [0, 0, 1, 1],
+            'population': int(tile_populations.sum())
+        }
+        return State(tile_data)
+
+    @classmethod
+    def fromFile(cls, filePath):
+        with open(filePath, 'r') as file:
+            state_data = json.load(file)
+        return State(state_data)
 
     def toJSON(self):
         return {
-            'tract_populations': self.tile_populations.tolist(),
-            'tract_vertices': self.tile_vertices,
-            'tract_neighbours': self.tile_neighbours,
-            'boundry_tracts': self.tile_boundaries
-            # 'tile_edges': self.tile_edges,
-            # 'population': self.population
+            'n_tiles': self.n_tiles,
+            'population': self.population,
+            'populations': self.tile_populations.tolist(),
+            'voters': self.tile_voters.tolist(),
+            'vertices': self.tile_vertices,
+            'neighbors': self.tile_neighbors,
+            'boundaries': self.tile_boundaries.tolist(),
+            'bbox': self.bbox
         }

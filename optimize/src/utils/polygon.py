@@ -28,21 +28,25 @@ def centroid(point_list):
 
 def union(polygons):
     s = 10000
-    polygons = [[ (int(x*s), int(y*s))  for x,y in p ] for p in polygons ]
+    polygons = [[ (int(x*s), int(y*s)) for x,y in p ] for p in polygons ]
     pc = pyclipper.Pyclipper()
     pc.AddPaths(polygons, pyclipper.PT_SUBJECT, closed=True)
     result = pc.Execute(pyclipper.CT_UNION, pyclipper.PFT_NONZERO, pyclipper.PFT_NONZERO)
     return [[ (x/s, y/s)  for x,y in p ] for p in result ]
 
-# def union(polygons):
-#     print(polygons)
-#     s = 10000
-#     p = cascaded_union([
-#         Polygon([ (int(x*s), int(y*s))  for x,y in p ]) for p in polygons
-#     ])
-#     return p
-#     # return polygons
+def offset(poly, v):
+    s = 10000
+    poly = [ (int(x*s), int(y*s)) for x,y in poly ]
+    pco = pyclipper.PyclipperOffset()
+    pco.AddPath(poly, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
+    solution = pco.Execute(v)
+    return [ (x/s, y/s)  for x,y in solution[0] ]
 
+def test(polygons):
+    """ A temporary hack. Union polygon
+    """
+    polygons = [ offset(p, 5) for p in polygons ]
+    return [ offset(union(polygons)[0], -5) ]
 
 # def merge(polygons):
 #     """ Assumes poylgons **share vertices.**

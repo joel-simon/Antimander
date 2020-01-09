@@ -30,7 +30,7 @@ cdef APUtil(
     low[u] = time[0]
     time[0] += 1
 
-    cdef list neighbors = map.tile_neighbours[u]
+    cdef list neighbors = map.tile_neighbors[u]
     for v in neighbors:
         # Dont count connections between tiles of differnet districts.
         if (tile_districts[u] != tile_districts[v]):

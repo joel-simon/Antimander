@@ -5,9 +5,16 @@
 # cython: cdivision=True
 import random
 from src.connectivity import can_lose
-from src.districts cimport count_pop, is_frontier
+from src.districts cimport district_populations, is_frontier
 
-cpdef void mutate(int[:] districts, int n_districts, state, float m_rate, int pop_min, int pop_max) except *:
+cpdef void mutate(
+    int[:] districts,
+    int n_districts,
+    state,
+    float m_rate,
+    int pop_min,
+    int pop_max
+) except *:
     """ Mutate a partition.
     """
     cdef int edits = 0
@@ -16,29 +23,29 @@ cpdef void mutate(int[:] districts, int n_districts, state, float m_rate, int po
     cdef int ti, tk, di, t_other, d_other
     cdef list options
     cdef bint is_front
-    cdef int[:] d_pop = count_pop(state, districts, n_districts)
+    cdef int[:] d_pop = district_populations(state, districts, n_districts)
     cdef set front = set([ ti for ti in range(state.n_tiles) if is_frontier(districts, state, ti) ])
-    cdef int[:] tile_populations_tot = state.tile_populations_tot
+    cdef int[:] tile_populations = state.tile_populations
 
     for _ in range(max_tries):
-        #### Pick random tile to change district.
+        ### Pick random tile to change district. ###
         ti = random.choice(tuple(front))
         di = districts[ti]
 
-        ### See if removing will break population equality constraint.
-        if d_pop[di] - tile_populations_tot[ti] < pop_min:
+        ### See if removing will break population equality constraint. ###
+        if d_pop[di] - tile_populations[ti] < pop_min:
             continue
 
-        ### See if removing will break contiguity constraint.
+        ### See if removing will break contiguity constraint. ###
         if not can_lose(districts, state, n_districts, ti):
             continue
 
         options = []
-        for t_other in state.tile_neighbours[ti]:
+        for t_other in state.tile_neighbors[ti]:
             d_other = districts[t_other]
             if districts[t_other] == districts[ti]:
                 continue
-            if d_pop[d_other] + tile_populations_tot[ti] > pop_max:
+            if d_pop[d_other] + tile_populations[ti] > pop_max:
                 continue
 
             options.append(t_other)
@@ -47,7 +54,7 @@ cpdef void mutate(int[:] districts, int n_districts, state, float m_rate, int po
             t_other = random.choice(options)
             districts[ti] = districts[t_other]
 
-            for tk in state.tile_neighbours[ti]:
+            for tk in state.tile_neighbors[ti]:
                 is_front = is_frontier(districts, state, tk)
                 if is_front:
                     front.add(tk)
@@ -58,4 +65,3 @@ cpdef void mutate(int[:] districts, int n_districts, state, float m_rate, int po
             if edits == to_edit:
                 break
     return
-    # districts
