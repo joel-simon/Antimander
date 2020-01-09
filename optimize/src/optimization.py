@@ -83,8 +83,10 @@ class DistrictProblem(Problem):
 ############################################################################
 
 def save_results(outdir, config, state, result, opt_i, hv_history):
-    path_out = os.path.join(outdir, 'rundata_%i.json'%opt_i)
-    with open(path_out, 'w') as f:
+    with open(os.path.join(outdir, 'config.json'), 'w') as f:
+        json.dump(config, f, indent=4)
+
+    with open(os.path.join(outdir, 'rundata_%i.json'%opt_i), 'w') as f:
         json.dump({
             "config": config,
             'state': state.toJSON(),
@@ -107,6 +109,7 @@ def upscale(districts, mapping):
     return upscaled
 
 def optimize(config, _state, outdir, save_plots=True):
+    os.makedirs(outdir, exist_ok=False)
     ############################################################################
     """ The core of the code. First, contract the state graph. """
     ############################################################################
@@ -163,7 +166,7 @@ def optimize(config, _state, outdir, save_plots=True):
             pop_size=config['pop_size'],
             sampling=seeds,
             crossover=DistrictCross(),
-            mutation=DistrictMutation(state, config['n_districts'], .15),
+            mutation=DistrictMutation(state, config['n_districts'], threshold),
         )
         problem = DistrictProblem(
             state,
@@ -185,9 +188,10 @@ def optimize(config, _state, outdir, save_plots=True):
             seeds = upscale(result.X, mapping)
         if save_plots:
             import matplotlib.pyplot as plt
-            plt.plot(problem.hv_history)
+            plt.plot(problem.hv_history, label='Phase: %i'%opt_i)
             plt.xlabel('Generations')
             plt.ylabel('Hypervolume')
+            plt.legend()
             plt.savefig(os.path.join(outdir, 'hv_history_%i.png'%opt_i))
-        print('Final HV %f'%problem.hv_history[-1])
         print('')
+        print('Final HV %f'%problem.hv_history[-1])
