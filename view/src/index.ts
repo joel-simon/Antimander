@@ -104,7 +104,7 @@ function draw_ui(data) {
     metrics_b.children[1].classList.add('selected')
 }
 
-fetch('data/rundata_2.json').
+fetch('data/rundata_3.json').
     then(r => r.json()).
     then(data => {
         // console.log(data)

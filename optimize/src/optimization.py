@@ -1,6 +1,7 @@
 import os, random, time, json
 import numpy as np
 from tqdm import tqdm
+
 from pymoo.model.problem import Problem
 from pymoo.model.mutation import Mutation
 from pymoo.model.crossover import Crossover
@@ -16,7 +17,6 @@ from src.novelty import NoveltyArchive
 ############################################################################
 # Evolutionary Operators.
 ############################################################################
-
 class DistrictCross(Crossover):
     """ The crossover operator does nothing.
     """
@@ -48,14 +48,13 @@ class DistrictProblem(Problem):
     """ This class just calls the obtective functions.
     """
     def __init__(self, state, n_districts, n_iters, use_novelty, metrics, **kwargs):
-        n_metrics = len(metrics) + use_novelty
-        super().__init__(n_var=state.n_tiles, n_obj=n_metrics, type_var=np.integer, **kwargs)
+        super().__init__(n_var=state.n_tiles, n_obj=len(metrics)+use_novelty, type_var=np.integer, **kwargs)
         self.state = state
         self.n_districts = n_districts
         self.metrics = metrics
         self.use_novelty = use_novelty
-        self.hv = Hypervolume(ref_point=np.array([1]*n_metrics))
-        self.history = []
+        self.hv = Hypervolume(ref_point=np.array([1]*len(metrics)))
+        self.hv_history = []
         self.pbar = tqdm(total=n_iters)
 
         if self.use_novelty:
@@ -68,22 +67,22 @@ class DistrictProblem(Problem):
             [ f(self.state, d, self.n_districts) for f in self.metrics ]
             for d in districts
         ])
+        # Dont count novelty in the hypervolume.
+        self.hv_history.append(round(self.hv.calc(out['F']), 6))
         if self.use_novelty:
             novelty = self.archive.updateAndGetSparseness(districts)
-            novelty = (1.-(novelty*0.1))
+            novelty = 1.0 - ( novelty * 0.5 )
             np.clip(novelty, 0, 1, out=novelty)
             out['F'] = np.append( out['F'], novelty[:, np.newaxis], axis=1 )
-
         assert not np.isnan(out['F']).any()
         assert out['F'].min() >= 0
         assert out['F'].max() <= 1.0
-        self.history.append(round(self.hv.calc(out['F']), 6))
         self.pbar.update(1)
-        self.pbar.set_description("Hypervolume %s" % self.history[-1])
+        self.pbar.set_description("Hypervolume %s" % self.hv_history[-1])
 
 ############################################################################
 
-def save_results(outdir, config, state, result, opt_i):
+def save_results(outdir, config, state, result, opt_i, hv_history):
     path_out = os.path.join(outdir, 'rundata_%i.json'%opt_i)
     with open(path_out, 'w') as f:
         json.dump({
@@ -91,6 +90,7 @@ def save_results(outdir, config, state, result, opt_i):
             'state': state.toJSON(),
             'values': result.F.tolist(),
             'solutions': result.X.tolist(),
+            'hv_history': hv_history,
             'metrics_data': {
                 'lost_votes': [
                     np.asarray(metrics.lost_votes(state, x, config['n_districts'])).tolist()
@@ -106,7 +106,7 @@ def upscale(districts, mapping):
             upscaled[i, j] = districts[i, mapping[j]]
     return upscaled
 
-def optimize(config, _state, outdir):
+def optimize(config, _state, outdir, save_plots=True):
     ############################################################################
     """ The core of the code. First, contract the state graph. """
     ############################################################################
@@ -180,6 +180,14 @@ def optimize(config, _state, outdir):
             verbose=False,
             save_history=False
         )
-        save_results(outdir, config, state, result, opt_i)
+        save_results(outdir, config, state, result, opt_i, problem.hv_history)
         if mapping is not None:
             seeds = upscale(result.X, mapping)
+        if save_plots:
+            import matplotlib.pyplot as plt
+            plt.plot(problem.hv_history)
+            plt.xlabel('Generations')
+            plt.ylabel('Hypervolume')
+            plt.savefig(os.path.join(outdir, 'hv_history_%i.png'%opt_i))
+        print('Final HV %f'%problem.hv_history[-1])
+        print('')
