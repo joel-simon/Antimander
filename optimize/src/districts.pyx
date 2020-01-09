@@ -57,3 +57,35 @@ def make_random(state, n_districts):
                 n_empty -= 1
 
     return partition
+
+# def make_random(state, n_districts):
+    # boundry_tiles = np.where(state.tile_boundaries)[0].tolist()
+    # seeds = random.sample(boundry_tiles, n_districts)
+    # districts = np.full(state.n_tiles, -1, dtype='i')
+    # n_assigned = 0
+    # open_neighbors = [ set() for _ in range(n_districts) ]
+    # d_populations  = [ state.tile_populations[idx] for idx in seeds ]
+    # for d_idx, t_idx in enumerate(seeds):
+    #     districts[ t_idx ] = d_idx
+    #     n_assigned += 1
+    #     for t_idx0 in state.tile_neighbors[t_idx]:
+    #         if districts[t_idx0] == -1:
+    #             open_neighbors[d_idx].add(t_idx0)
+    # while n_assigned < state.n_tiles:
+    #     # Select the smallest district that has open neighbors.
+    #     d_idx = next(d for d in np.argsort(d_populations) if len(open_neighbors[d]) > 0)
+    #     # Give it a random neighbor.
+    #     t_idx = random.choice(list(open_neighbors[d_idx]))
+    #     # print('giving %i to %i'%(t_idx, d_idx))
+    #     districts[ t_idx ] = d_idx
+    #     d_populations[ d_idx ] += state.tile_populations[ t_idx ]
+    #     n_assigned += 1
+    #     for on in open_neighbors:
+    #         if t_idx in on:
+    #             on.remove(t_idx)
+    #     for t_idx0 in state.tile_neighbors[t_idx]:
+    #         if districts[t_idx0] == -1:
+    #             open_neighbors[d_idx].add(t_idx0)
+    # assert districts.min() == 0
+    # assert all(len(on) == 0 for n in open_neighbors)
+    # return districts

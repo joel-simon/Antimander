@@ -11,9 +11,10 @@ from pymoo.optimize import minimize
 from src import districts, metrics, mutation
 from src.state import State
 from src.constraints import fix_pop_equality
+from src.novelty import NoveltyArchive
 
 ############################################################################
-#
+# Evolutionary Operators.
 ############################################################################
 
 class DistrictCross(Crossover):
@@ -46,27 +47,40 @@ class DistrictMutation(Mutation):
 class DistrictProblem(Problem):
     """ This class just calls the obtective functions.
     """
-    def __init__(self, state, n_districts, n_iters, metrics, **kwargs):
-        super().__init__(n_var=state.n_tiles, n_obj=len(metrics), type_var=np.integer, **kwargs)
+    def __init__(self, state, n_districts, n_iters, use_novelty, metrics, **kwargs):
+        n_metrics = len(metrics) + use_novelty
+        super().__init__(n_var=state.n_tiles, n_obj=n_metrics, type_var=np.integer, **kwargs)
         self.state = state
         self.n_districts = n_districts
         self.metrics = metrics
-        self.hv = Hypervolume(ref_point=np.array([1]*len(metrics)))
+        self.use_novelty = use_novelty
+        self.hv = Hypervolume(ref_point=np.array([1]*n_metrics))
         self.history = []
         self.pbar = tqdm(total=n_iters)
 
-    def _evaluate(self, X, out, *args, **kwargs):
+        if self.use_novelty:
+            print('Making novelty archive...')
+            self.archive = NoveltyArchive(state, n_districts)
+
+    def _evaluate(self, districts, out, *args, **kwargs):
         t = time.time()
         out['F'] = np.array([
-            [ f(self.state, p, self.n_districts) for f in self.metrics ]
-            for p in X
+            [ f(self.state, d, self.n_districts) for f in self.metrics ]
+            for d in districts
         ])
+        if self.use_novelty:
+            novelty = self.archive.updateAndGetSparseness(districts)
+            novelty = (1.-(novelty*0.1))
+            np.clip(novelty, 0, 1, out=novelty)
+            out['F'] = np.append( out['F'], novelty[:, np.newaxis], axis=1 )
+
         assert not np.isnan(out['F']).any()
         assert out['F'].min() >= 0
         assert out['F'].max() <= 1.0
         self.history.append(round(self.hv.calc(out['F']), 6))
         self.pbar.update(1)
         self.pbar.set_description("Hypervolume %s" % self.history[-1])
+
 ############################################################################
 
 def save_results(outdir, config, state, result, opt_i):
@@ -92,40 +106,6 @@ def upscale(districts, mapping):
             upscaled[i, j] = districts[i, mapping[j]]
     return upscaled
 
-
-# def make_random(state, n_districts):
-
-    # boundry_tiles = np.where(state.tile_boundaries)[0].tolist()
-    # seeds = random.sample(boundry_tiles, n_districts)
-    # districts = np.full(state.n_tiles, -1, dtype='i')
-    # n_assigned = 0
-    # open_neighbors = [ set() for _ in range(n_districts) ]
-    # d_populations  = [ state.tile_populations[idx] for idx in seeds ]
-    # for d_idx, t_idx in enumerate(seeds):
-    #     districts[ t_idx ] = d_idx
-    #     n_assigned += 1
-    #     for t_idx0 in state.tile_neighbors[t_idx]:
-    #         if districts[t_idx0] == -1:
-    #             open_neighbors[d_idx].add(t_idx0)
-    # while n_assigned < state.n_tiles:
-    #     # Select the smallest district that has open neighbors.
-    #     d_idx = next(d for d in np.argsort(d_populations) if len(open_neighbors[d]) > 0)
-    #     # Give it a random neighbor.
-    #     t_idx = random.choice(list(open_neighbors[d_idx]))
-    #     # print('giving %i to %i'%(t_idx, d_idx))
-    #     districts[ t_idx ] = d_idx
-    #     d_populations[ d_idx ] += state.tile_populations[ t_idx ]
-    #     n_assigned += 1
-    #     for on in open_neighbors:
-    #         if t_idx in on:
-    #             on.remove(t_idx)
-    #     for t_idx0 in state.tile_neighbors[t_idx]:
-    #         if districts[t_idx0] == -1:
-    #             open_neighbors[d_idx].add(t_idx0)
-    # assert districts.min() == 0
-    # assert all(len(on) == 0 for n in open_neighbors)
-    # return districts
-
 def optimize(config, _state, outdir):
     ############################################################################
     """ The core of the code. First, contract the state graph. """
@@ -133,19 +113,15 @@ def optimize(config, _state, outdir):
     print('Subdividing state')
     states = [ _state ]
     mappings = [ None ]
-
     while states[-1].n_tiles > config['max_start_tiles']:
         state, mapping = states[-1].contract()
         states.append(state)
         mappings.append(mapping)
-        print(state.n_tiles)
-
     states = states[::-1]
     mappings = mappings[::-1]
     thresholds = np.linspace(0.5, 0.1, num=len(states))
     print('Resolutions:', [ s.n_tiles for s in states ])
     print('Equality thresholds:', thresholds)
-
     ############################################################################
     """ Second, Create an initial population that has populaiton equality. """
     ############################################################################
@@ -168,25 +144,21 @@ def optimize(config, _state, outdir):
                 pass
     seeds = np.array(seeds)
     print('Created seeds')
-
     ############################################################################
     """ Run a optimization process for each resolution using the previups
         outputs as the seeds for the next.
     """
     ############################################################################
     for opt_i, (state, mapping, threshold) in enumerate(zip(states, mappings, thresholds)):
-        print('Making novelty archive...')
-        archive
         print('Optimizing', opt_i, state.n_tiles, threshold)
-        used_metrics = { name: getattr(metrics, name) for name in config['metrics'] }
-
+        last_res = opt_i == len(states)-1
+        used_metrics = { name: getattr(metrics, name) for name in config['metrics'] if name != 'novelty' }
         for seed in seeds:
             fix_pop_equality(
                 state, seed, config['n_districts'],
                 tolerance=threshold,
                 max_iters=500
             )
-
         algorithm = NSGA2(
             pop_size=config['pop_size'],
             sampling=seeds,
@@ -197,7 +169,8 @@ def optimize(config, _state, outdir):
             state,
             config['n_districts'],
             config['n_gens'],
-            used_metrics.values()
+            use_novelty=('novelty' in config['metrics']) and not last_res,
+            metrics=used_metrics.values()
         )
         result = minimize(
             problem,
