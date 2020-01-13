@@ -30,16 +30,17 @@ import math, random
 # Note: If 0 points are given, None is returned. If 1 point is given, a circle of radius 0 is returned.
 #
 # Initially: No boundary points known
-def make_circle(points):
+def make_circle(points, shuffle=True):
     # Convert to float and randomize order
-    shuffled = [(float(x), float(y)) for (x, y) in points]
-    random.shuffle(shuffled)
+    if shuffle:
+        points = [(float(x), float(y)) for (x, y) in points]
+        random.shuffle(points)
 
     # Progressively add points to circle or recompute circle
     c = None
-    for (i, p) in enumerate(shuffled):
+    for (i, p) in enumerate(points):
         if c is None or not is_in_circle(c, p):
-            c = _make_circle_one_point(shuffled[ : i + 1], p)
+            c = _make_circle_one_point(points[ : i + 1], p)
     return c
 
 

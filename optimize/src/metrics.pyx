@@ -7,7 +7,10 @@ from libc.math cimport sqrt, fabs, fmax
 import math
 import numpy as np
 cimport numpy as np
+from scipy.spatial import ConvexHull
+
 from src.districts cimport district_voters, district_populations
+from src.utils.polygon_x cimport contains_point
 
 ################################################################################
 # Equality
@@ -34,8 +37,8 @@ cpdef float equality(state, int[:] districts, int n_districts, float threshold=.
 ################################################################################
 cpdef float compactness(state, int[:] districts, int n_districts) except *:
     cdef float[:,:] tile_centers = state.tile_centers
-    cdef float[:,:] dist_centers   = np.zeros((n_districts, 2), dtype='float32')
-    cdef float[:] distances   = np.zeros(n_districts, dtype='float32')
+    cdef float[:,:] dist_centers = np.zeros((n_districts, 2), dtype='float32')
+    cdef float[:] distances = np.zeros(n_districts, dtype='float32')
     cdef float[:] sizes = np.zeros(n_districts, dtype='float32')
     cdef int ti, di
     # Find the average point.
@@ -63,35 +66,6 @@ cdef inline float udist(float[:] a, float[:] b):
     cdef float x = a[0] - b[0]
     cdef float y = a[1] - b[1]
     return sqrt(x*x + y*y)
-
-
-def compactness_ch(state, districts, n_districts):
-    """ Compacntess with concave hull.
-    """
-    from scipy.spatial import ConvexHull
-    from matplotlib.path import Path
-
-    dist_points = [ [] for _ in range(n_districts) ]
-
-    for pl in dist_points:
-        if len(pl) < 2:
-            return 1.0
-
-    for ti in range(state.n_tiles):
-        dist_points[ districts[ti] ].append( state.tile_centers[ti] )
-
-    dist_points = [ np.array(pl) for pl in dist_points ]
-    dist_hulls = [ Path(pl[ ConvexHull(pl).vertices ]) for pl in dist_points ]
-
-    circle_counts = np.zeros(n_districts, dtype='uint8')
-
-    for p in state.tile_centers:
-        for di, hull in enumerate(dist_hulls):
-            if hull.contains_point(p):
-                circle_counts[di] += 1
-    percents = [ (circle_counts[i]-len(p))/len(p) for i,p in enumerate(dist_points) ]
-
-    return np.mean(percents)
 
 ################################################################################
 # Competitiveness

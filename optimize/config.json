@@ -2,7 +2,7 @@
     "max_start_tiles": 200,
     "n_districts": 5,
     "n_gens": 200,
-    "pop_size": 100,
-    "_metrics": [ "efficiency_gap", "compactness", "novelty" ],
-    "metrics": [ "efficiency_gap", "compactness", "competitiveness", "novelty" ]
+    "pop_size": 300,
+    "_metrics": [ "efficiency_gap", "compactness", "competitiveness" ],
+    "metrics": [ "efficiency_gap", "compactness_ch", "competitiveness", "novelty" ]
 }

@@ -14,23 +14,18 @@ import time
 plot = False
 save = True
 
-
 t = time.time()
-# sf = shapefile.Reader('/Users/joelsimon/Data/gerrymandering/WI_wards_12_16/WI_ltsb_corrected_final.shp')
 sf = shapefile.Reader('/Users/joelsimon/Data/gerrymandering/NC_VTD/NC_VTD.shp')
-# print(vars(sf))
-# print(sf.bbox)
-# exit()
 
 shapes = sf.shapes()
 records = sf.records()
 patches = []
-pnts2dists = defaultdict(set)
+pnts2tiles = defaultdict(set)
 centers = []
 
 for idx, shape in enumerate(shapes):
     for p in shape.points:
-        pnts2dists[p].add(idx)
+        pnts2tiles[p].add(idx)
     points = np.array(shape.points)
     centers.append(points.mean(axis=0).tolist())
     polygon = Polygon(points, True)
@@ -39,26 +34,25 @@ for idx, shape in enumerate(shapes):
 boundry_tracts = np.zeros(len(records), dtype='i')
 for idx, shape in enumerate(shapes):
     for p in shape.points:
-        if len(pnts2dists[p]) == 1:
-            # boundry_tracts.append(idx)
+        if len(pnts2tiles[p]) == 1:
             boundry_tracts[idx] = 1
             break
 
 edge_list = []
 neighbors = [ set() for _ in range(len(shapes)) ]
-for dis_idxs in pnts2dists.values():
+for dis_idxs in pnts2tiles.values():
     for idx1, idx2 in combinations(dis_idxs, 2):
         neighbors[idx1].add(idx2)
         neighbors[idx2].add(idx1)
         edge_list.append((centers[idx1], centers[idx2]))
 
 # Fix islands
-to_remove = set(i for i, n in enumerate(neighbors) if len(n) < 1)
-print('to filter', to_remove)
+# to_remove = set(i for i, n in enumerate(neighbors) if len(n) < 1)
+# print('to filter', to_remove)
 
 for idx, shape in enumerate(shapes):
     for p in shape.points:
-        pnts2dists[p].add(idx)
+        pnts2tiles[p].add(idx)
     points = np.array(shape.points)
     centers.append(points.mean(axis=0).tolist())
     polygon = Polygon(points, True)
@@ -112,7 +106,7 @@ if plot:
     #     polygon = Polygon(points, True)
     #     patches.append(polygon)
 
-    # for dis_idxs in pnts2dists.values():
+    # for dis_idxs in pnts2tiles.values():
     #     for idx1, idx2 in combinations(dis_idxs, 2):
     #         edge_list.append((centers[idx1], centers[idx2]))
 

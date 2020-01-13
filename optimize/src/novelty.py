@@ -33,8 +33,6 @@ class NoveltyArchive(object):
 
         self.dim_reduction.fit(np.array(initial_adj))
         self.archive = self.dim_reduction.transform(initial_adj).tolist()
-        # self.novelty_threshold = self.makeSparseness([ ]).mean()
-        # print('self.novelty_threshold', self.novelty_threshold)
 
     def makeAdjanecy(self, district):
         n = self.state.n_tiles * 2
