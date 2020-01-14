@@ -104,15 +104,25 @@ function draw_ui(data) {
     metrics_b.children[1].classList.add('selected')
 }
 
-fetch('data/t1000/rundata_1.json').
-    then(r => r.json()).
-    then(data => {
-        // console.log(data)
+const urlParams = new URLSearchParams(window.location.search)
+
+if (!urlParams.has('run') || !urlParams.has('stage')) {
+    alert('Query must have run and stage. i.e http://localhost:3000/?run=t1000&stage=3')
+} else {
+    const run   = urlParams.get('run')
+    const stage = urlParams.get('stage')
+    const url   = `data/${run}/rundata_${stage}.json`
+    fetch(url)
+    .then(async resp => {
+        let data
+        if (resp.ok) {
+            data = await resp.json()
+        } else {
+            return alert(url + ' Not found.')
+        }
+        console.log('Got data:', data)
         const { state, solutions, values } = data
         const { n_districts, metrics } = data.config
-
-        console.log(state);
-
         const colors: string[] = Array(n_districts).fill(0).map(randomColor)
         const chart_config = {
             onHover: p_i => {
@@ -125,3 +135,4 @@ fetch('data/t1000/rundata_1.json').
         draw_partition(canvas_partition, ctx_partition, state, solutions[0], colors)
         update_text(div_text, data, 0, colors)
     })
+}
