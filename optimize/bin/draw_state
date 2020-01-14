@@ -16,6 +16,6 @@ n_districts = 20
 districts = np.random.randint(0, n_districts, (state.n_tiles))
 colors = np.random.randint(0, 255, (n_districts, 3))
 
-draw_districts(state, districts, n_districts, screen, colors, draw_vertices=False)
+draw_districts(state, districts, n_districts, screen, colors, draw_vertices=True)
 pygame.display.update()
 wait_loop()

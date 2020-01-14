@@ -43,7 +43,7 @@ def offset(poly, v, s=10000):
 
 def bounding_box(polygon):
     if len(polygon) < 3:
-        raise Error('Polygon must have more than two points.')
+        raise ValueError('Polygon must have more than two points.')
     bbox = [ float('inf'), float('inf'), float('-inf'), float('-inf')  ]
     for x,y in polygon:
         bbox[0] = min(bbox[0], x)
@@ -51,6 +51,8 @@ def bounding_box(polygon):
         bbox[2] = max(bbox[2], x)
         bbox[3] = max(bbox[3], y)
     return bbox
+
+    raise
 
 # def union_offset(polygons, s=10000, off=5):
 #     """ A temporary hack. Union polygon
@@ -92,7 +94,7 @@ def merge_polygons(polygons):
         if len(options) == 0:
             break
         vert = options[0]
-    # assert len(polygon) == len(outside_verts), (len(polygon), len(outside_verts), polygons)
+    assert len(polygon) == len(outside_verts), (len(polygon), len(outside_verts), polygons)
     # print('Merged %i polygns in %f'%(len(polygons), time.time() - start))
     return polygon
     # except Exception as e:

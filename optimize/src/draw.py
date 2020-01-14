@@ -27,6 +27,7 @@ def draw_districts(
     for ti in range(state.n_tiles):
         district = districts[ti]
         vertices = [ pmap(p) for p in state.tile_vertices[ti] ]
+        # if ti in [246]:
         gfxdraw.filled_polygon(screen, vertices, colors[district] )
         pygame.draw.polygon(screen, (50, 50, 50), vertices, 2)
 

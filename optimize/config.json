@@ -1,5 +1,5 @@
 {
-    "max_start_tiles": 200,
+    "max_start_tiles": 300,
     "n_districts": 5,
     "n_gens": 200,
     "pop_size": 300,

@@ -146,7 +146,7 @@ def optimize(config, _state, outdir, save_plots=True):
                 seeds.append(dists)
                 pbar.update(1)
             except Exception as e:
-                print('FPE failed.', e)
+                #print('FPE failed.', e)
                 pass
     seeds = np.array(seeds)
     print('Created seeds')

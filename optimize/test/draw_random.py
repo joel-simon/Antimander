@@ -14,7 +14,8 @@ n_districts = 5
 state = State.makeRandom(512, seed=1)
 # state, mapping = state.contract()
 
-met = metrics.compactness_reock
+met = metrics.compactness_convex_hull
+# met = metrics.compactness_reock
 mutate = True
 
 districts = districts.make_random(state, n_districts)

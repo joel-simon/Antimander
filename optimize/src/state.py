@@ -12,25 +12,23 @@ class State:
         self.n_tiles = len(tile_data['populations'])
         self.tile_populations = np.array(tile_data['populations'], dtype='i')
         self.tile_voters      = np.array(tile_data['voters'], dtype='i')
-        # self.tile_vertices = [[tuple(v) for v in p] for p in tile_data['vertices']]
-        self.tile_vertices = [[(round(x), round(y)) for x,y in p] for p in tile_data['vertices']]
+        self.tile_vertices    = [[(round(x), round(y)) for x,y in p]
+                                  for p in tile_data['vertices']]
         self.tile_neighbors   = tile_data['neighbors']
         self.tile_boundaries  = np.array(tile_data['boundaries'], dtype='i')
         self.population       = tile_data['population']
         self.bbox             = tile_data['bbox']
+        self.calculateStats()
+
+    def calculateStats(self):
         self.area = sum(polygon.area(v) for v in self.tile_vertices)
-
-        self.fixSingleNeighbors()
-        self.fitlerSingleConnections()
-        self.calculateNeighborGraph()
-
         self.tile_centers = np.array(
             [ polygon.centroid(v) for v in self.tile_vertices ], dtype='float32'
         )
         self.tile_bboxs = np.array(
             [ polygon.bounding_box(v) for v in self.tile_vertices ], dtype='float32'
         )
-
+        self.calculateNeighborGraph()
         assert type(self.population) == int
         assert self.tile_voters.shape == (self.n_tiles, 2) #Only support 2-parties for now.
         assert self.tile_populations.shape == (self.n_tiles,)
@@ -39,55 +37,6 @@ class State:
         assert len(self.tile_vertices) == self.n_tiles
         assert len(self.tile_neighbors) == self.n_tiles
         assert all(len(n) > 0 for n in self.tile_neighbors)
-
-    def fixSingleNeighbors(self):
-        # Check for tiles totally surrounded by others (donut holes).
-        to_remove = []
-        to_join = []
-        for ti in range(self.n_tiles):
-            if len(self.tile_neighbors[ti]) == 1:
-                to_remove.append(ti)
-                to_join.append(list(self.tile_neighbors[ti])[0])
-        self.mergeTiles(to_remove, to_join)
-
-    def fitlerSingleConnections(self):
-        to_remove = []
-        to_join = []
-        verts = [ set(v) for v in self.tile_vertices ]
-        for ti1 in range(self.n_tiles):
-            new_neighbors = [ ti2 for ti2 in self.tile_neighbors[ti1]
-                            if len(verts[ti1] & verts[ti2]) > 1 ]
-            if len(new_neighbors) == 0:
-                to_remove.append(ti1)
-                to_join.append(list(self.tile_neighbors[ti1])[0])
-            self.tile_neighbors[ti1] = new_neighbors
-        self.mergeTiles(to_remove, to_join)
-
-    def mergeTiles(self, to_remove, to_join):
-        # Helper function used while fixing state holes and single vert neighbors.
-        if len(to_remove) == 0:
-            return
-        #print('to_remove, to_join', to_remove, to_join)
-        tile_mapping = np.zeros(self.n_tiles, dtype='i')
-        idx = 0
-        for ti in range(self.n_tiles):
-            tile_mapping[ti] = ti - idx
-            if ti in to_remove:
-                idx += 1
-        for src, dst in zip(to_remove, to_join):
-            self.tile_voters[dst] += self.tile_voters[src]
-            self.tile_populations[dst] += self.tile_populations[src]
-            self.tile_vertices[dst] = merge_polygons([self.tile_vertices[dst], self.tile_vertices[src]])
-        self.n_tiles -= len(to_remove)
-        self.tile_voters      = np.delete(self.tile_voters, to_remove, axis=0)
-        self.tile_populations = np.delete(self.tile_populations, to_remove, axis=0)
-        self.tile_boundaries  = np.delete(self.tile_boundaries, to_remove, axis=0)
-        self.tile_vertices    = [ v for i,v in enumerate(self.tile_vertices) if i not in to_remove ]
-        self.tile_neighbors   = [
-            [ int(tile_mapping[t]) for t in tn if t not in to_remove ]
-            for i, tn in enumerate(self.tile_neighbors)
-            if i not in to_remove
-        ]
 
     def calculateNeighborGraph(self):
         self.neighbor_graph = []
@@ -160,9 +109,8 @@ class State:
             for j in self.tile_neighbors[i_from]:
                 if to_join[j] != i_to:
                     tile_neighbors[i_to].add(int(to_join[j])) # cast to int to make it jsonable
-
-        tile_vertices = [ merge_polygons(pg) for pg in polygon_groups ]
-
+        tile_vertices  = [ merge_polygons(pg) for pg in polygon_groups ]
+        tile_neighbors = [ list(tn) for tn in tile_neighbors ]
         state = State({
             'bbox': self.bbox,
             'voters': tile_voters,
@@ -172,7 +120,64 @@ class State:
             'population':  self.population,
             'populations': tile_populations
         })
+        # state.fixSingleNeighbors(to_join)
+        # state.fitlerSingleConnections(to_join)
+        # state.calculateStats()
         return state, to_join
+
+    def fixSingleNeighbors(self, mapping):
+        # Check for tiles totally surrounded by others (donut holes).
+        to_remove = []
+        to_join = []
+        for ti in range(self.n_tiles):
+            if len(self.tile_neighbors[ti]) == 1:
+                to_remove.append(ti)
+                to_join.append(list(self.tile_neighbors[ti])[0])
+        self.mergeTiles(to_remove, to_join, mapping)
+
+    def fitlerSingleConnections(self, mapping):
+        to_remove = []
+        to_join = []
+        verts = [ set(v) for v in self.tile_vertices ]
+        for ti1 in range(self.n_tiles):
+            new_neighbors = [ ti2 for ti2 in self.tile_neighbors[ti1]
+                            if len(verts[ti1] & verts[ti2]) > 1 ]
+            if len(new_neighbors) == 0:
+                to_remove.append(ti1)
+                to_join.append(list(self.tile_neighbors[ti1])[0])
+            self.tile_neighbors[ti1] = new_neighbors
+        self.mergeTiles(to_remove, to_join, mapping)
+
+    def mergeTiles(self, to_remove, to_join, mapping):
+        # Helper function used while fixing state holes and single vert neighbors.
+        if len(to_remove) == 0:
+            return
+        #print('to_remove, to_join', to_remove, to_join)
+        tile_mapping = np.zeros(self.n_tiles, dtype='i')
+        idx = 0
+        for ti in range(self.n_tiles):
+            tile_mapping[ti] = ti - idx
+            if ti in to_remove:
+                idx += 1
+        for src, dst in zip(to_remove, to_join):
+            self.tile_voters[dst] += self.tile_voters[src]
+            self.tile_populations[dst] += self.tile_populations[src]
+            self.tile_vertices[dst] = merge_polygons([self.tile_vertices[dst], self.tile_vertices[src]])
+        self.n_tiles -= len(to_remove)
+        self.tile_voters      = np.delete(self.tile_voters, to_remove, axis=0)
+        self.tile_populations = np.delete(self.tile_populations, to_remove, axis=0)
+        self.tile_boundaries  = np.delete(self.tile_boundaries, to_remove, axis=0)
+        self.tile_vertices    = [ v for i,v in enumerate(self.tile_vertices) if i not in to_remove ]
+        self.tile_neighbors   = [
+            [ int(tile_mapping[t]) for t in tn if t not in to_remove ]
+            for i, tn in enumerate(self.tile_neighbors)
+            if i not in to_remove
+        ]
+        if mapping:
+            derp = dict(zip(to_remove, to_join))
+            #print(derp)
+            for i,v in enumerate(mapping):
+                mapping[i] = derp.get(mapping[i], mapping[i])
 
     @classmethod
     def makeRandom(cls, n_tiles=100, n_parties=2, seed=None):
@@ -188,18 +193,19 @@ class State:
             (0.7 * 0.5 * np.random.rand(n_tiles) * tile_populations),
             (0.7 * 0.5 * np.random.rand(n_tiles) * tile_populations)
         ]).astype('int32').T
-        # print([ c['vertices'] for c in cells ])
         tile_data = {
             'vertices': [ [ (int(x*1000),int(y*1000)) for x,y in c['vertices']] for c in cells ],
             'neighbors': [[ e['adjacent_cell'] for e in c['faces'] if e['adjacent_cell'] >= 0] for c in cells ],
             'boundaries': tile_boundaries,
             'populations': tile_populations,
             'voters': tile_voters,
-            # 'edges': [ c['faces'] for c in cells ],
             'bbox': [0, 0, 1000, 1000],
             'population': int(tile_populations.sum())
         }
-        return State(tile_data)
+        state = State(tile_data)
+        state.fixSingleNeighbors(None)
+        state.fitlerSingleConnections(None)
+        return state
 
     @classmethod
     def fromFile(cls, filePath):
