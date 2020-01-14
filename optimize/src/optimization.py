@@ -98,7 +98,7 @@ def save_results(outdir, config, state, result, opt_i, hv_history):
                     for x in result.X
                 ],
                 'bounding_hulls': [
-                    metrics.bounding_hulls(state, x, config['n_districts']).tolist()
+                    [ h.tolist() for h in metrics.bounding_hulls(state, x, config['n_districts']) ]
                     for x in result.X
                 ]
             }
