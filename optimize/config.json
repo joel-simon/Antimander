@@ -3,6 +3,6 @@
     "n_districts": 5,
     "n_gens": 200,
     "pop_size": 300,
-    "_metrics": [ "efficiency_gap", "compactness", "competitiveness" ],
-    "metrics": [ "efficiency_gap", "compactness_ch", "competitiveness", "novelty" ]
+    "metrics": [ "efficiency_gap", "compactness_convex_hull", "competitiveness" ],
+    "_metrics": [ "efficiency_gap", "compactness_convex_hull", "competitiveness", "novelty" ]
 }

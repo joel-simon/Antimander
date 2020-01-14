@@ -8,9 +8,7 @@ import math
 import numpy as np
 cimport numpy as np
 from scipy.spatial import ConvexHull
-
 from src.districts cimport district_voters, district_populations
-from src.utils.polygon_x cimport contains_point
 
 ################################################################################
 # Equality
@@ -26,8 +24,6 @@ cpdef float equality(state, int[:] districts, int n_districts, float threshold=.
         d_score = fabs(dist_populations[i] - ideal_pop) / ideal_pop
         if d_score < threshold:
             d_score = 0.0
-        # d_score = min(d_score*.1, 1.0)
-        # score += d_score
         score = fmax(score, d_score)
 
     return min(score * 0.1, 1.0)

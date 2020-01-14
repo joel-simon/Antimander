@@ -1,5 +1,6 @@
 import pyclipper
-from src.polygon_x import contains_point
+import numpy as np
+from src.utils import polygon_x
 
 def shoelace(vertices):
     """ The shoelace algorithm for polgon area """
@@ -12,7 +13,10 @@ def shoelace(vertices):
     return area
 
 def area(vertices):
-    return abs(shoelace(vertices)) / 2
+    if type(vertices) == np.ndarray:
+        return polygon_x.area(vertices)
+    else:
+        return abs(shoelace(vertices)) / 2
 
 def centroid(point_list):
     x = [p[0] for p in point_list]
@@ -36,6 +40,17 @@ def offset(poly, v, s=10000):
     pco.AddPath(poly, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
     solution = pco.Execute(v)
     return [ (x/s, y/s) for x,y in solution[0] ]
+
+def bounding_box(polygon):
+    if len(polygon) < 3:
+        raise Error('Polygon must have more than two points.')
+    bbox = [ float('inf'), float('inf'), float('-inf'), float('-inf')  ]
+    for x,y in polygon:
+        bbox[0] = min(bbox[0], x)
+        bbox[1] = min(bbox[1], y)
+        bbox[2] = max(bbox[2], x)
+        bbox[3] = max(bbox[3], y)
+    return bbox
 
 # def union_offset(polygons, s=10000, off=5):
 #     """ A temporary hack. Union polygon

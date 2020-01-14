@@ -27,6 +27,9 @@ class State:
         self.tile_centers = np.array(
             [ polygon.centroid(v) for v in self.tile_vertices ], dtype='float32'
         )
+        self.tile_bboxs = np.array(
+            [ polygon.bounding_box(v) for v in self.tile_vertices ], dtype='float32'
+        )
 
         assert type(self.population) == int
         assert self.tile_voters.shape == (self.n_tiles, 2) #Only support 2-parties for now.
@@ -64,7 +67,7 @@ class State:
         # Helper function used while fixing state holes and single vert neighbors.
         if len(to_remove) == 0:
             return
-        print('to_remove, to_join', to_remove, to_join)
+        #print('to_remove, to_join', to_remove, to_join)
         tile_mapping = np.zeros(self.n_tiles, dtype='i')
         idx = 0
         for ti in range(self.n_tiles):
@@ -81,7 +84,7 @@ class State:
         self.tile_boundaries  = np.delete(self.tile_boundaries, to_remove, axis=0)
         self.tile_vertices    = [ v for i,v in enumerate(self.tile_vertices) if i not in to_remove ]
         self.tile_neighbors   = [
-            [ tile_mapping[t] for t in tn if t not in to_remove ]
+            [ int(tile_mapping[t]) for t in tn if t not in to_remove ]
             for i, tn in enumerate(self.tile_neighbors)
             if i not in to_remove
         ]
@@ -95,26 +98,26 @@ class State:
                 ng[j] = [k for k in self.tile_neighbors[j] if k in neighors]
             self.neighbor_graph.append(ng)
 
-    def calculateTileEdges(self):
-        """ The districts come in as a
-        """
-        self.tile_edges = [ #[ {tj => [length, edge_list] } } ]
-            defaultdict(lambda: {'length': 0, 'edges':[]})
-            for _ in range(self.n_tiles)
-        ]
-        # Vert to its tile indexes.
-        v2pi = defaultdict(set)
-        for pi, poly in enumerate(self.tile_vertices):
-            for vert in poly:
-                v2pi[ vert ].add(pi)
-        for ti, poly in enumerate(self.tile_vertices):
-            for vi, vert_a in enumerate(poly):
-                vert_b = poly[ (vi+1) % len(poly) ]
-                for ti_other in v2pi[vert_a].intersection(v2pi[vert_b]):
-                    if ti_other != ti:
-                        length = math.hypot(vert_a[0] - vert_b[0], vert_a[1] - vert_b[1])
-                        self.tile_edges[ ti ][ ti_other ][ 'length' ] += length
-                        self.tile_edges[ ti ][ ti_other ][ 'edges' ].append(( vert_a, vert_b ))
+    # def calculateTileEdges(self):
+    #     """ The districts come in as a
+    #     """
+    #     self.tile_edges = [ #[ {tj => [length, edge_list] } } ]
+    #         defaultdict(lambda: {'length': 0, 'edges':[]})
+    #         for _ in range(self.n_tiles)
+    #     ]
+    #     # Vert to its tile indexes.
+    #     v2pi = defaultdict(set)
+    #     for pi, poly in enumerate(self.tile_vertices):
+    #         for vert in poly:
+    #             v2pi[ vert ].add(pi)
+    #     for ti, poly in enumerate(self.tile_vertices):
+    #         for vi, vert_a in enumerate(poly):
+    #             vert_b = poly[ (vi+1) % len(poly) ]
+    #             for ti_other in v2pi[vert_a].intersection(v2pi[vert_b]):
+    #                 if ti_other != ti:
+    #                     length = math.hypot(vert_a[0] - vert_b[0], vert_a[1] - vert_b[1])
+    #                     self.tile_edges[ ti ][ ti_other ][ 'length' ] += length
+    #                     self.tile_edges[ ti ][ ti_other ][ 'edges' ].append(( vert_a, vert_b ))
 
     def contract(self, seed=None):
         """ Do Star contraction to cotnract the graph.

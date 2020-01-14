@@ -13,3 +13,17 @@ cpdef bint contains_point(float[:, :] poly, float x, float y) except *:
             inside = not inside
         j = -1
     return inside
+
+cdef float shoelace(float[:, :] poly) except *:
+    """ The shoelace algorithm for polgon area """
+    cdef float area = 0.0
+    cdef int i, j
+    cdef int n = poly.shape[0]
+    for i in range(n):
+        j = (i + 1) % n
+        area += (poly[j, 0] - poly[i, 0]) * \
+                (poly[j, 1] + poly[i, 1])
+    return area
+
+cpdef float area(float[:, :] poly) except *:
+    return abs(shoelace(poly)) / 2.0

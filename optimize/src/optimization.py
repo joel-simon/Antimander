@@ -56,7 +56,6 @@ class DistrictProblem(Problem):
         self.hv = Hypervolume(ref_point=np.array([1]*len(metrics)))
         self.hv_history = []
         self.pbar = tqdm(total=n_iters)
-
         if self.use_novelty:
             print('Making novelty archive...')
             self.archive = NoveltyArchive(state, n_districts)
@@ -97,6 +96,10 @@ def save_results(outdir, config, state, result, opt_i, hv_history):
                 'lost_votes': [
                     np.asarray(metrics.lost_votes(state, x, config['n_districts'])).tolist()
                     for x in result.X
+                ],
+                'bounding_hulls': [
+                    metrics.bounding_hulls(state, x, config['n_districts']).tolist()
+                    for x in result.X
                 ]
             }
         }, f)
@@ -109,7 +112,6 @@ def upscale(districts, mapping):
     return upscaled
 
 def optimize(config, _state, outdir, save_plots=True):
-    os.makedirs(outdir, exist_ok=False)
     ############################################################################
     """ The core of the code. First, contract the state graph. """
     ############################################################################
@@ -125,6 +127,7 @@ def optimize(config, _state, outdir, save_plots=True):
     thresholds = np.linspace(0.5, 0.1, num=len(states))
     print('Resolutions:', [ s.n_tiles for s in states ])
     print('Equality thresholds:', thresholds)
+
     ############################################################################
     """ Second, Create an initial population that has populaiton equality. """
     ############################################################################
@@ -143,15 +146,15 @@ def optimize(config, _state, outdir, save_plots=True):
                 seeds.append(dists)
                 pbar.update(1)
             except Exception as e:
-                # print('FPE failed.', e)
+                print('FPE failed.', e)
                 pass
     seeds = np.array(seeds)
     print('Created seeds')
     ############################################################################
-    """ Run a optimization process for each resolution using the previups
-        outputs as the seeds for the next.
-    """
+    """ Run a optimization process for each resolution using the previous
+        outputs as the seeds for the next. """
     ############################################################################
+    os.makedirs(outdir, exist_ok=False)
     for opt_i, (state, mapping, threshold) in enumerate(zip(states, mappings, thresholds)):
         print('Optimizing', opt_i, state.n_tiles, threshold)
         last_res = opt_i == len(states)-1
