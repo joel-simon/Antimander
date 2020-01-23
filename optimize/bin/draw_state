@@ -9,13 +9,13 @@ from src.state import State
 state = State.fromFile(sys.argv[1])
 
 pygame.init()
-screen = pygame.display.set_mode(( 1200, 600 ))
+screen = pygame.display.set_mode(( 2000, 1000 ))
 screen.fill(( 255, 255, 255 ))
 
 n_districts = 20
 districts = np.random.randint(0, n_districts, (state.n_tiles))
 colors = np.random.randint(0, 255, (n_districts, 3))
 
-draw_districts(state, districts, n_districts, screen, colors, draw_vertices=True)
+draw_districts(state, districts, n_districts, screen, colors, draw_vertices=False)
 pygame.display.update()
 wait_loop()

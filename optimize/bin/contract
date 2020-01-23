@@ -9,9 +9,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('-i', '--state', required=True, type=str, help='Path to a state file.')
     parser.add_argument('-o', '--out', required=True)
+    parser.add_argument('-s', '--seed', required=False, type=int)
     args = parser.parse_args()
     state = State.fromFile(args.state)
-    state, _ = state.contract()
+    state, _ = state.contract(seed=None)
     print('Contracted state to size:', state.n_tiles)
     with open(os.path.join(args.out), 'w') as f:
         json.dump(state.toJSON(), f)

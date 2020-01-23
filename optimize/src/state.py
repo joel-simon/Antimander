@@ -18,6 +18,8 @@ class State:
         self.tile_boundaries  = np.array(tile_data['boundaries'], dtype='i')
         self.population       = tile_data['population']
         self.bbox             = tile_data['bbox']
+        assert all(len(v) > 2 for v in self.tile_vertices)
+        assert all(len(n) > 0 for n in self.tile_neighbors)
         self.calculateStats()
 
     def calculateStats(self):
@@ -36,7 +38,6 @@ class State:
         assert self.tile_centers.shape     == (self.n_tiles, 2)
         assert len(self.tile_vertices) == self.n_tiles
         assert len(self.tile_neighbors) == self.n_tiles
-        assert all(len(n) > 0 for n in self.tile_neighbors)
 
     def calculateNeighborGraph(self):
         self.neighbor_graph = []
@@ -47,69 +48,71 @@ class State:
                 ng[j] = [k for k in self.tile_neighbors[j] if k in neighors]
             self.neighbor_graph.append(ng)
 
-    # def calculateTileEdges(self):
-    #     """ The districts come in as a
-    #     """
-    #     self.tile_edges = [ #[ {tj => [length, edge_list] } } ]
-    #         defaultdict(lambda: {'length': 0, 'edges':[]})
-    #         for _ in range(self.n_tiles)
-    #     ]
-    #     # Vert to its tile indexes.
-    #     v2pi = defaultdict(set)
-    #     for pi, poly in enumerate(self.tile_vertices):
-    #         for vert in poly:
-    #             v2pi[ vert ].add(pi)
-    #     for ti, poly in enumerate(self.tile_vertices):
-    #         for vi, vert_a in enumerate(poly):
-    #             vert_b = poly[ (vi+1) % len(poly) ]
-    #             for ti_other in v2pi[vert_a].intersection(v2pi[vert_b]):
-    #                 if ti_other != ti:
-    #                     length = math.hypot(vert_a[0] - vert_b[0], vert_a[1] - vert_b[1])
-    #                     self.tile_edges[ ti ][ ti_other ][ 'length' ] += length
-    #                     self.tile_edges[ ti ][ ti_other ][ 'edges' ].append(( vert_a, vert_b ))
-
     def contract(self, seed=None):
-        """ Do Star contraction to cotnract the graph.
+        """ Do Star contraction to contract the graph.
             http://www.cs.cmu.edu/afs/cs/academic/class/15210-f12/www/lectures/lecture16.pdf
         """
         if seed is not None: np.random.seed(seed)
-        # Do a random coin flip for each vertex.
+        # Do a random coin flip for each tile.
         stars = np.random.randint(0, 2, size=self.n_tiles, dtype='uint8')
-        # Store the idx of the newly created vertex this one will join into.
-        to_join = np.zeros(self.n_tiles, dtype='int32')
-        # For each non-star vertex pick a star neighbor.
+        # Store the idx of tile this one will join into.
+        to_join = np.arange(self.n_tiles, dtype='int32')
+        # Turn into sets for fast intersection tests.
+        verts = [ set(v) for v in self.tile_vertices ]
+        # For each non-star tile pick a star neighbor to join onto.
         for i in range(self.n_tiles):
-            if stars[i] == 1:
-                to_join[i] = i
-            else:
-                options = [ j for j in self.tile_neighbors[i] if stars[j] ]
-                if len(options) == 0:
-                    stars[i] = 1
-                    to_join[i] = i
-                else:
+            if not stars[i]:
+                #options = [ j for j in self.tile_neighbors[i] if stars[j] ]
+                options = [ j for j in self.tile_neighbors[i] if stars[j] and len(verts[i] & verts[j]) > 1 ]
+                if len(options):
                     to_join[i] = random.choice(options)
+
+        # Mapping go between indexes of old state to new state.
+        state, mapping1 = self._mergeTiles(to_join)
+        state, mapping2 = state.mergeIslands()
+        # We now how to merge the mappings!
+        final_mapping = np.array([ mapping2[mapping1[ti]] for ti in range(self.n_tiles) ], dtype='i')
+        return state, final_mapping
+
+    def mergeIslands(self):
+        # Check for tiles totally surrounded by others.
+        to_join = np.arange(self.n_tiles, dtype='int32')
+        for ti in range(self.n_tiles):
+            if len(self.tile_neighbors[ti]) == 1:
+                to_join[ti] = self.tile_neighbors[ti][0]
+        state, mapping = self._mergeTiles(to_join)
+        assert all(len(n) > 1 for n in state.tile_neighbors)
+        return state, mapping
+
+    def _mergeTiles(self, to_join):
         # Starred tiles will become the new tiles and others will merge into them.
-        stars2newidxs = defaultdict(lambda: len(stars2newidxs))
+        old_2_new_idxs = defaultdict(lambda: len(old_2_new_idxs))
+        mapping = to_join.copy()
         for i, idx in enumerate(to_join):
-            to_join[i] = stars2newidxs[idx]
-        new_n_tiles = stars.sum()
+            mapping[i] = old_2_new_idxs[idx]
+        new_n_tiles = len(set(mapping))
         # Create the data structures for new state.
-        tile_voters = np.zeros((new_n_tiles, 2), dtype='i')
+        tile_voters      = np.zeros((new_n_tiles, 2), dtype='i')
         tile_populations = np.zeros(new_n_tiles, dtype='i')
         tile_boundaries  = np.zeros(new_n_tiles, dtype='i')
         polygon_groups   = [ [] for _ in range(new_n_tiles) ]
         tile_neighbors   = [ set() for _ in range(new_n_tiles) ]
         # Merge old states into new states.
-        for i_from, i_to in enumerate(to_join):
+        for i_from, i_to in enumerate(mapping):
             tile_populations[i_to] += self.tile_populations[i_from]
             tile_voters[i_to] += self.tile_voters[i_from]
             if (self.tile_boundaries[i_from]):
                 tile_boundaries[i_to] = True
             polygon_groups[i_to].append(self.tile_vertices[ i_from ])
             for j in self.tile_neighbors[i_from]:
-                if to_join[j] != i_to:
-                    tile_neighbors[i_to].add(int(to_join[j])) # cast to int to make it jsonable
-        tile_vertices  = [ merge_polygons(pg) for pg in polygon_groups ]
+                if mapping[j] != i_to:
+                    tile_neighbors[i_to].add(int(mapping[j])) # cast to int to make it jsonable
+        # Create new polygon objects out of polygon groups.
+        tile_vertices = [  ]
+        for pg in polygon_groups:
+            new_vertices = merge_polygons(pg)
+            assert len(new_vertices) > 2, (pg, new_vertices)
+            tile_vertices.append(new_vertices)
         tile_neighbors = [ list(tn) for tn in tile_neighbors ]
         state = State({
             'bbox': self.bbox,
@@ -120,64 +123,7 @@ class State:
             'population':  self.population,
             'populations': tile_populations
         })
-        # state.fixSingleNeighbors(to_join)
-        # state.fitlerSingleConnections(to_join)
-        # state.calculateStats()
-        return state, to_join
-
-    def fixSingleNeighbors(self, mapping):
-        # Check for tiles totally surrounded by others (donut holes).
-        to_remove = []
-        to_join = []
-        for ti in range(self.n_tiles):
-            if len(self.tile_neighbors[ti]) == 1:
-                to_remove.append(ti)
-                to_join.append(list(self.tile_neighbors[ti])[0])
-        self.mergeTiles(to_remove, to_join, mapping)
-
-    def fitlerSingleConnections(self, mapping):
-        to_remove = []
-        to_join = []
-        verts = [ set(v) for v in self.tile_vertices ]
-        for ti1 in range(self.n_tiles):
-            new_neighbors = [ ti2 for ti2 in self.tile_neighbors[ti1]
-                            if len(verts[ti1] & verts[ti2]) > 1 ]
-            if len(new_neighbors) == 0:
-                to_remove.append(ti1)
-                to_join.append(list(self.tile_neighbors[ti1])[0])
-            self.tile_neighbors[ti1] = new_neighbors
-        self.mergeTiles(to_remove, to_join, mapping)
-
-    def mergeTiles(self, to_remove, to_join, mapping):
-        # Helper function used while fixing state holes and single vert neighbors.
-        if len(to_remove) == 0:
-            return
-        #print('to_remove, to_join', to_remove, to_join)
-        tile_mapping = np.zeros(self.n_tiles, dtype='i')
-        idx = 0
-        for ti in range(self.n_tiles):
-            tile_mapping[ti] = ti - idx
-            if ti in to_remove:
-                idx += 1
-        for src, dst in zip(to_remove, to_join):
-            self.tile_voters[dst] += self.tile_voters[src]
-            self.tile_populations[dst] += self.tile_populations[src]
-            self.tile_vertices[dst] = merge_polygons([self.tile_vertices[dst], self.tile_vertices[src]])
-        self.n_tiles -= len(to_remove)
-        self.tile_voters      = np.delete(self.tile_voters, to_remove, axis=0)
-        self.tile_populations = np.delete(self.tile_populations, to_remove, axis=0)
-        self.tile_boundaries  = np.delete(self.tile_boundaries, to_remove, axis=0)
-        self.tile_vertices    = [ v for i,v in enumerate(self.tile_vertices) if i not in to_remove ]
-        self.tile_neighbors   = [
-            [ int(tile_mapping[t]) for t in tn if t not in to_remove ]
-            for i, tn in enumerate(self.tile_neighbors)
-            if i not in to_remove
-        ]
-        if mapping:
-            derp = dict(zip(to_remove, to_join))
-            #print(derp)
-            for i,v in enumerate(mapping):
-                mapping[i] = derp.get(mapping[i], mapping[i])
+        return state, mapping
 
     @classmethod
     def makeRandom(cls, n_tiles=100, n_parties=2, seed=None):
@@ -203,8 +149,8 @@ class State:
             'population': int(tile_populations.sum())
         }
         state = State(tile_data)
-        state.fixSingleNeighbors(None)
-        state.fitlerSingleConnections(None)
+        # state.mergeIslands(None)
+        # state.fitlerSingleConnections(None)
         return state
 
     @classmethod
