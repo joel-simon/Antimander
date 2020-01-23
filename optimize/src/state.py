@@ -1,6 +1,7 @@
 import random, math, json
 import numpy as np
 from collections import defaultdict, namedtuple
+from itertools import combinations
 from src.utils import polygon
 from src.test import merge_polygons
 
@@ -21,6 +22,12 @@ class State:
         assert all(len(v) > 2 for v in self.tile_vertices)
         assert all(len(n) > 0 for n in self.tile_neighbors)
         self.calculateStats()
+
+        verts = [ set(v) for v in self.tile_vertices ]
+        for (i, a), (j, b) in combinations(enumerate(verts), 2):
+            if len(a) == len(b) and a & b == a:
+                print('INIT: DUPLICATE TILES FOUND', i, j)
+                exit()
 
     def calculateStats(self):
         self.area = sum(polygon.area(v) for v in self.tile_vertices)
@@ -52,7 +59,9 @@ class State:
         """ Do Star contraction to contract the graph.
             http://www.cs.cmu.edu/afs/cs/academic/class/15210-f12/www/lectures/lecture16.pdf
         """
-        if seed is not None: np.random.seed(seed)
+        if seed is not None:
+            random.seed(seed)
+            np.random.seed(seed)
         # Do a random coin flip for each tile.
         stars = np.random.randint(0, 2, size=self.n_tiles, dtype='uint8')
         # Store the idx of tile this one will join into.
@@ -62,17 +71,25 @@ class State:
         # For each non-star tile pick a star neighbor to join onto.
         for i in range(self.n_tiles):
             if not stars[i]:
-                #options = [ j for j in self.tile_neighbors[i] if stars[j] ]
                 options = [ j for j in self.tile_neighbors[i] if stars[j] and len(verts[i] & verts[j]) > 1 ]
                 if len(options):
                     to_join[i] = random.choice(options)
-
+        # Prevent created islands. If an interior tiles neighbors are all
+        # combining, join into that one as well.
+        for ti in range(self.n_tiles):
+            ji = to_join[ti]
+            jn = to_join[self.tile_neighbors[ti][0]]
+            if self.tile_boundaries[ti]:
+                continue
+            if ji != jn and all(to_join[tn] == jn for tn in self.tile_neighbors[ti]):
+                to_join[ti] = jn
         # Mapping go between indexes of old state to new state.
         state, mapping1 = self._mergeTiles(to_join)
-        state, mapping2 = state.mergeIslands()
+        return state, mapping1
+        # state, mapping2 = state.mergeIslands()
         # We now how to merge the mappings!
-        final_mapping = np.array([ mapping2[mapping1[ti]] for ti in range(self.n_tiles) ], dtype='i')
-        return state, final_mapping
+        # final_mapping = np.array([ mapping2[mapping1[ti]] for ti in range(self.n_tiles) ], dtype='i')
+        # return state, final_mapping
 
     def mergeIslands(self):
         # Check for tiles totally surrounded by others.
@@ -90,13 +107,16 @@ class State:
         mapping = to_join.copy()
         for i, idx in enumerate(to_join):
             mapping[i] = old_2_new_idxs[idx]
+
         new_n_tiles = len(set(mapping))
+
         # Create the data structures for new state.
         tile_voters      = np.zeros((new_n_tiles, 2), dtype='i')
         tile_populations = np.zeros(new_n_tiles, dtype='i')
         tile_boundaries  = np.zeros(new_n_tiles, dtype='i')
         polygon_groups   = [ [] for _ in range(new_n_tiles) ]
         tile_neighbors   = [ set() for _ in range(new_n_tiles) ]
+
         # Merge old states into new states.
         for i_from, i_to in enumerate(mapping):
             tile_populations[i_to] += self.tile_populations[i_from]
@@ -104,15 +124,31 @@ class State:
             if (self.tile_boundaries[i_from]):
                 tile_boundaries[i_to] = True
             polygon_groups[i_to].append(self.tile_vertices[ i_from ])
-            for j in self.tile_neighbors[i_from]:
-                if mapping[j] != i_to:
-                    tile_neighbors[i_to].add(int(mapping[j])) # cast to int to make it jsonable
+            for j in self.tile_neighbors[ i_from ]:
+                if mapping[ j ] != i_to:
+                    tile_neighbors[ i_to ].add(int(mapping[j])) # cast to int to make it jsonable
+
         # Create new polygon objects out of polygon groups.
         tile_vertices = [  ]
-        for pg in polygon_groups:
+        for idx, pg in enumerate(polygon_groups):
             new_vertices = merge_polygons(pg)
-            assert len(new_vertices) > 2, (pg, new_vertices)
+            if len(new_vertices) < 3:
+                print(new_vertices)
+                print([len(p) for p in pg ])
+                print( np.argwhere(mapping == idx) )
+                for a, b in combinations(pg,2):
+                    print(len(set(a)&set(b)))
+            assert len(new_vertices) > 2
             tile_vertices.append(new_vertices)
+
+        verts = [ set(v) for v in tile_vertices ]
+        for (i, a), (j, b) in combinations(enumerate(verts), 2):
+            if len(a) == len(b) and a & b == a:
+                print('DUPLICATE TILES FOUND', i, j)
+                print(np.argwhere(mapping == i).T[0])
+                print(np.argwhere(mapping == j).T[0])
+                # exit()
+
         tile_neighbors = [ list(tn) for tn in tile_neighbors ]
         state = State({
             'bbox': self.bbox,

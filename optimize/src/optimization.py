@@ -115,7 +115,13 @@ def optimize(config, _state, outdir, save_plots=True):
     ############################################################################
     """ The core of the code. First, contract the state graph. """
     ############################################################################
-    print('Subdividing state')
+    print('-'*80)
+    print('Starting Optimization:')
+    for k, v in config.items():
+        if k[0] != '_':
+            print(f'\t{k}: {v}')
+    print('-'*80)
+    print('Subdividing State:')
     states = [ _state ]
     mappings = [ None ]
     while states[-1].n_tiles > config['max_start_tiles']:
@@ -127,13 +133,13 @@ def optimize(config, _state, outdir, save_plots=True):
     thresholds = np.linspace(0.5, 0.1, num=len(states))
     print('Resolutions:', [ s.n_tiles for s in states ])
     print('Equality thresholds:', thresholds)
-
     ############################################################################
     """ Second, Create an initial population that has populaiton equality. """
     ############################################################################
     seeds = []
     state = states[0]
-    print('Creating initial population.', config['pop_size'], config['n_districts'])
+    print('-'*80)
+    print('Creating Initial Population:')
     with tqdm(total=config['pop_size']) as pbar:
         while len(seeds) < config['pop_size']:
             try:
@@ -149,14 +155,15 @@ def optimize(config, _state, outdir, save_plots=True):
                 #print('FPE failed.', e)
                 pass
     seeds = np.array(seeds)
-    print('Created seeds')
     ############################################################################
     """ Run a optimization process for each resolution using the previous
         outputs as the seeds for the next. """
     ############################################################################
     os.makedirs(outdir, exist_ok=False)
     for opt_i, (state, mapping, threshold) in enumerate(zip(states, mappings, thresholds)):
-        print('Optimizing', opt_i, state.n_tiles, threshold)
+        print('-'*80)
+        print(f'Optimizing {opt_i} / {len(states)}')
+        print(f'\tNum tiles: {state.n_tiles}\n\tThreshold: {threshold}')
         last_res = opt_i == len(states)-1
         used_metrics = { name: getattr(metrics, name) for name in config['metrics'] if name != 'novelty' }
         for seed in seeds:

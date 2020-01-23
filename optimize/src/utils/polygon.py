@@ -67,6 +67,8 @@ from itertools import combinations
 def merge_polygons(polygons):
     """ Assumes polygons **share identical integer vertices.**
     """
+    if len(polygons) == 1:
+        return polygns[0]
     # try:
     start = time.time()
     edge_faces = Counter()
