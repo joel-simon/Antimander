@@ -1,5 +1,6 @@
 import os, random, time, json
 import numpy as np
+from functools import partial
 from tqdm import tqdm
 
 from pymoo.model.problem import Problem
@@ -13,6 +14,7 @@ from src import districts, metrics, mutation
 from src.state import State
 from src.constraints import fix_pop_equality
 from src.novelty import NoveltyArchive
+from src.feasibleinfeasible import *
 
 ############################################################################
 # Evolutionary Operators.
@@ -45,15 +47,25 @@ class DistrictMutation(Mutation):
         return X
 
 class DistrictProblem(Problem):
-    """ This class just calls the obtective functions.
+    """ This class just calls the objective functions.
     """
-    def __init__(self, state, n_districts, n_iters, use_novelty, metrics, **kwargs):
-        super().__init__(n_var=state.n_tiles, n_obj=len(metrics)+use_novelty, type_var=np.integer, **kwargs)
+    def __init__( self, state, n_districts, n_iters, use_novelty, used_metrics,
+                  used_contraints=[], hypervolume_mask=None, *args, **kwargs ):
+        super().__init__(
+            n_var=state.n_tiles,
+            n_obj=len(used_metrics)+use_novelty,
+            n_constr=len(used_contraints),
+            type_var=np.integer, *args, **kwargs
+        )
         self.state = state
         self.n_districts = n_districts
-        self.metrics = metrics
+        self.used_metrics = used_metrics
+        self.used_contraints = used_contraints
         self.use_novelty = use_novelty
-        self.hv = Hypervolume(ref_point=np.array([1]*len(metrics)))
+        if hypervolume_mask is None:
+            hypervolume_mask = [ 1 ] * len(used_metrics)
+        self.hypervolume_mask = hypervolume_mask
+        self.hv = Hypervolume(ref_point=np.array([ 1 ]*sum(hypervolume_mask)))
         self.hv_history = []
         self.pbar = tqdm(total=n_iters)
         if self.use_novelty:
@@ -63,11 +75,17 @@ class DistrictProblem(Problem):
     def _evaluate(self, districts, out, *args, **kwargs):
         t = time.time()
         out['F'] = np.array([
-            [ f(self.state, d, self.n_districts) for f in self.metrics ]
+            [ f(self.state, d, self.n_districts) for f in self.used_metrics ]
             for d in districts
         ])
+        if self.used_contraints:
+            out['G'] = np.array([
+                [ f(self.state, d, self.n_districts) !=0 for f in self.used_contraints ]
+                for d in districts
+            ])
         # Dont count novelty in the hypervolume.
-        self.hv_history.append(round(self.hv.calc(out['F']), 6))
+        hv = self.hv.calc(out['F'][:, self.hypervolume_mask])
+        self.hv_history.append(round(hv, 6))
         if self.use_novelty:
             novelty = self.archive.updateAndGetSparseness(districts)
             novelty = 1.0 - ( novelty * 0.5 )
@@ -79,12 +97,30 @@ class DistrictProblem(Problem):
         self.pbar.update(1)
         self.pbar.set_description("Hypervolume %s" % self.hv_history[-1])
 
-############################################################################
+# class DistrictProblemContrained(DistrictProblem):
+#     """ Like dsitrict problem except poulation equality is a hard constraint """
+#     def __init__(self, state, n_districts, n_iters, use_novelty, used_metrics, equality_threshold, *args, **kwargs):
+#         # Add equality to list of objectives.
+#         used_metrics = used_metrics.slice()
+#         self.equality = partial(metrics.equality, threshold=equality_threshold)
+#         used_metrics.append(self.equality)
+#         super().__init__(state, n_districts, n_iters, use_novelty, used_metrics, n_constr=1, *args, **kwargs)
 
+#     def _evaluate(self, districts, out, *args, **kwargs):
+#         # Add equality to list of constraints.
+#         super()._evaluate(districts, out, *args, **kwargs)
+#         out['G'] = np.array([
+#             self.equality(self.state, d, self.n_districts) != 0.0
+#             for d in districts
+#         ])
+
+class DistrictProblemFI(FI_problem_mixin, DistrictProblem):
+    pass
+
+############################################################################
 def save_results(outdir, config, state, result, opt_i, hv_history):
     with open(os.path.join(outdir, 'config.json'), 'w') as f:
         json.dump(config, f, indent=4)
-
     with open(os.path.join(outdir, 'rundata_%i.json'%opt_i), 'w') as f:
         json.dump({
             "config": config,
@@ -111,7 +147,7 @@ def upscale(districts, mapping):
             upscaled[i, j] = districts[i, mapping[j]]
     return upscaled
 
-def optimize(config, _state, outdir, save_plots=True):
+def optimize(config, _state, outdir, feasibleinfeasible=True, save_plots=True):
     ############################################################################
     """ The core of the code. First, contract the state graph. """
     ############################################################################
@@ -130,8 +166,7 @@ def optimize(config, _state, outdir, save_plots=True):
         mappings.append(mapping)
     states = states[::-1]
     mappings = mappings[::-1]
-    thresholds = np.linspace(0.5, 0.1, num=len(states))
-    print('Resolutions:', [ s.n_tiles for s in states ])
+    thresholds = np.linspace(0.4, 0.1, num=len(states))
     print('Equality thresholds:', thresholds)
     ############################################################################
     """ Second, Create an initial population that has populaiton equality. """
@@ -144,11 +179,12 @@ def optimize(config, _state, outdir, save_plots=True):
         while len(seeds) < config['pop_size']:
             try:
                 dists = districts.make_random(state, config['n_districts'])
-                fix_pop_equality(
-                    state, dists, config['n_districts'],
-                    tolerance=thresholds[0],
-                    max_iters=300
-                )
+                if not feasibleinfeasible:
+                    fix_pop_equality(
+                        state, dists, config['n_districts'],
+                        tolerance=thresholds[0],
+                        max_iters=300
+                    )
                 seeds.append(dists)
                 pbar.update(1)
             except Exception as e:
@@ -164,35 +200,86 @@ def optimize(config, _state, outdir, save_plots=True):
         print('-'*80)
         print(f'Optimizing {opt_i} / {len(states)}')
         print(f'\tNum tiles: {state.n_tiles}\n\tThreshold: {threshold}')
-        last_res = opt_i == len(states)-1
-        used_metrics = { name: getattr(metrics, name) for name in config['metrics'] if name != 'novelty' }
-        for seed in seeds:
-            fix_pop_equality(
-                state, seed, config['n_districts'],
-                tolerance=threshold,
-                max_iters=500
+        last_phase = opt_i == len(states)-1
+        used_metrics = [ getattr(metrics, name) for name in config['metrics'] if name != 'novelty' ]
+        used_contraints = []
+        use_novelty = ('novelty' in config['metrics']) and not last_phase
+        hypervolume_mask = [ True ] * len(used_metrics)
+        if feasibleinfeasible:
+            equality = partial(metrics.equality, threshold=threshold)
+            used_contraints.append(equality)
+            used_metrics.append(equality)
+            hypervolume_mask.append(False)
+
+            feas_algo = NSGA2_FI(
+                pop_size=config['pop_size'],
+                sampling=seeds,
+                crossover=DistrictCross(),
+                mutation=DistrictMutation(state, config['n_districts'], threshold),
             )
-        algorithm = NSGA2(
-            pop_size=config['pop_size'],
-            sampling=seeds,
-            crossover=DistrictCross(),
-            mutation=DistrictMutation(state, config['n_districts'], threshold),
-        )
-        problem = DistrictProblem(
-            state,
-            config['n_districts'],
-            config['n_gens'],
-            use_novelty=('novelty' in config['metrics']) and not last_res,
-            metrics=used_metrics.values()
-        )
-        result = minimize(
-            problem,
-            algorithm,
-            ('n_gen', config['n_gens']),
-            seed=0,
-            verbose=False,
-            save_history=False
-        )
+            infeas_algo = NSGA2_FI(
+                pop_size =config['pop_size'],
+                sampling =seeds,
+                crossover=DistrictCross(),
+                mutation =DistrictMutation(state, config['n_districts'], 1.0),
+                selection=TournamentSelection(func_comp=cv_agnostic_binary_tournament)
+            )
+            problem = DistrictProblemFI(
+                state,
+                config['n_districts'],
+                config['n_gens'],
+                use_novelty=use_novelty,
+                used_metrics=used_metrics,
+                used_contraints=used_contraints,
+                hypervolume_mask=hypervolume_mask,
+            )
+            # Feasible population seeks to maximize performance objectives.
+            feas_mask = ([ True ] * (len(used_metrics)-1)) + [ False ]
+            # Infeasible population seeks to maximize constraint violation.
+            infeas_mask = ([ False ] * (len(used_metrics)-1)) + [ True ]
+            # Both populations use novelty.
+            if use_novelty:
+                feas_mask.append(True)
+                infeas_mask.append(True)
+            result = FI_minimize(
+                problem,
+                feas_algo,
+                infeas_algo,
+                ('n_gen', config['n_gens']),
+                feas_mask=feas_mask,
+                infeas_mask=infeas_mask,
+                seed=0,
+                verbose=False
+            )
+        else:
+            for seed in seeds:
+                fix_pop_equality(
+                    state, seed, config['n_districts'],
+                    tolerance=threshold,
+                    max_iters=500
+                )
+
+            algorithm = NSGA2(
+                pop_size=config['pop_size'],
+                sampling=seeds,
+                crossover=DistrictCross(),
+                mutation=DistrictMutation(state, config['n_districts'], threshold),
+            )
+            problem = DistrictProblem(
+                state,
+                config['n_districts'],
+                config['n_gens'],
+                use_novelty=use_novelty,
+                used_metrics=used_metrics
+            )
+            result = minimize(
+                problem,
+                algorithm,
+                ('n_gen', config['n_gens']),
+                seed=0,
+                verbose=False,
+                save_history=False
+            )
         save_results(outdir, config, state, result, opt_i, problem.hv_history)
         if mapping is not None:
             seeds = upscale(result.X, mapping)
