@@ -145,7 +145,9 @@ class FI_Algo(Algorithm):
         infeas_algo = self.infeas_algo
         #run each algorithm to generate offspring
         for algo in [self.feas_algo,self.infeas_algo]:
-            algo.next()
+            #as long as the population is not empty (i.e. in the beginning of search for feasible pop)
+            if len(algo.pop)>0:   #TODO: instead, try seed to generate random new individuals
+                algo.next()
 
         #aggregate feasible and infeasible offspring
         feas_off_total = self.feas_algo.feasible.merge(self.infeas_algo.feasible)
@@ -167,7 +169,8 @@ class FI_Algo(Algorithm):
         infeas_algo.mask_fitness()
 
         #do selection to form new populations
-        feas_algo.pop = feas_algo.survival.do(feas_algo.problem, feas_algo.pop, feas_algo.pop_size, algorithm=feas_algo)
+        if len(feas_algo.pop)>0:   #feasible pop may sometimes have no members (at beginning of search)
+            feas_algo.pop = feas_algo.survival.do(feas_algo.problem, feas_algo.pop, feas_algo.pop_size, algorithm=feas_algo)
         infeas_algo.pop = infeas_algo.survival.do(infeas_algo.problem, infeas_algo.pop, infeas_algo.pop_size, algorithm=infeas_algo)
 
         #set the reported pop for this 2POP algorithm to be the feasible individuals
