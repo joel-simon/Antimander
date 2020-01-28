@@ -32,6 +32,27 @@ cpdef bint is_frontier(int[:] partition, state, int ti) except *:
             return True
     return False
 
+cpdef list district_boundry_points(state, int[:] districts, int n_districts):
+    """ Helper functions for compactness metrics."""
+    cdef list points = [ [] for _ in range(n_districts) ]
+    cdef int ti, di, ti_n
+    cdef float x0, y0, x1, y1
+    cdef bint add_tile
+    for ti in range(state.n_tiles):
+        di = districts[ti]
+        x0, y0, x1, y1 = state.tile_bboxs[ti]
+        add_tile = False
+        for ti_n in state.tile_neighbors[ti]:
+            if districts[ti_n] != di:
+                add_tile = True
+                break
+        if add_tile or state.tile_boundaries[ti]:
+            points[di].append((x0, y0))
+            points[di].append((x1, y1))
+            points[di].append((x0, y1))
+            points[di].append((x1, y0))
+    return points
+
 def make_random(state, n_districts):
     boundry_tiles = np.where(state.tile_boundaries)[0].tolist()
     seeds = random.sample(boundry_tiles, n_districts)

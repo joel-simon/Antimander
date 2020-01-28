@@ -41,8 +41,8 @@ class DistrictMutation(Mutation):
     def _do(self, problem, X, **kwargs):
         t = time.time()
         X = X.copy()
+        mutation_rate = 1.0 / self.state.n_tiles
         for i in range(X.shape[0]):
-            mutation_rate = random.gauss(0.01, 0.01)
             mutation.mutate(X[i], self.n_districts, self.state, mutation_rate, self.pop_min, self.pop_max)
         return X
 

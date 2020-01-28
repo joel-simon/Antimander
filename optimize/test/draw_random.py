@@ -11,7 +11,7 @@ from src.draw import draw_districts
 
 n_districts = 5
 # state = State.fromFile('data/NC.json')
-state = State.makeRandom(512, seed=1)
+state = State.makeRandom(1024, seed=1)
 # state, mapping = state.contract()
 
 met = metrics.compactness_convex_hull
@@ -30,7 +30,7 @@ screen.fill((255, 255, 255))
 colors = np.random.randint(0, 255, (n_districts, 3))
 
 
-draw_districts(state, districts, n_districts, screen, colors, draw_bounding_circles=True, draw_bounding_hulls=False)
+draw_districts(state, districts, n_districts, screen, colors, draw_bounding_circles=True, draw_bounding_hulls=True)
 pygame.display.update()
 
 while True:
@@ -42,20 +42,19 @@ while True:
         pop_max = ideal_pop * (1+tolerance)
         pop_min = ideal_pop * (1-tolerance)
 
-        mutation.mutate(d2, n_districts, state, 0.01, pop_min, pop_max)
+        mutation.mutate(d2, n_districts, state, 0.00, pop_min, pop_max)
 
         new_fitness = met(state, d2, n_districts)
         # print('new_fitness', new_fitness)
 
         if new_fitness < met(state, districts, n_districts):
-            # print(new_fitness)
-            print('new_fitness', new_fitness)
+            print('\nnew_fitness', new_fitness)
             districts = d2
             draw_districts(state, districts, n_districts, screen, colors, draw_bounding_hulls=True)
             pygame.display.update()
         else:
-            pass
-            # print('.')
+            # pass
+            print('.', end = '')
 
     for event in pygame.event.get():
         if event.type == pygame.KEYDOWN:
