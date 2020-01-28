@@ -1,8 +1,9 @@
 {
-    "max_start_tiles": 300,
+    "feasibleinfeasible": false,
+    "max_start_tiles": 350,
     "n_districts": 5,
-    "n_gens": 100,
-    "pop_size": 200,
+    "n_gens": 40,
+    "pop_size": 40,
     "_metrics": [ "efficiency_gap", "compactness_convex_hull", "competitiveness" ],
-    "metrics": [ "efficiency_gap", "compactness", "competitiveness", "novelty" ]
+    "metrics": [ "efficiency_gap", "compactness_convex_hull", "novelty" ]
 }

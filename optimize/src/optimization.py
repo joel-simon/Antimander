@@ -147,7 +147,7 @@ def upscale(districts, mapping):
             upscaled[i, j] = districts[i, mapping[j]]
     return upscaled
 
-def optimize(config, _state, outdir, feasibleinfeasible=True, save_plots=True):
+def optimize(config, _state, outdir, save_plots=True):
     ############################################################################
     """ The core of the code. First, contract the state graph. """
     ############################################################################
@@ -166,7 +166,7 @@ def optimize(config, _state, outdir, feasibleinfeasible=True, save_plots=True):
         mappings.append(mapping)
     states = states[::-1]
     mappings = mappings[::-1]
-    thresholds = np.linspace(0.4, 0.1, num=len(states))
+    thresholds = np.linspace(0.5, 0.1, num=len(states))
     print('Equality thresholds:', thresholds)
     ############################################################################
     """ Second, Create an initial population that has populaiton equality. """
@@ -175,6 +175,7 @@ def optimize(config, _state, outdir, feasibleinfeasible=True, save_plots=True):
     state = states[0]
     print('-'*80)
     print('Creating Initial Population:')
+    feasibleinfeasible = bool(config['feasibleinfeasible'])
     with tqdm(total=config['pop_size']) as pbar:
         while len(seeds) < config['pop_size']:
             try:
