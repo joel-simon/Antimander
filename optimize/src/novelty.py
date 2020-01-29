@@ -12,7 +12,7 @@ class NoveltyArchive(object):
         novelty_threshold=1.5,
         archive_stagnation=3,
         ns_K=10,
-        use_MCA=True,
+        use_MCA=False,
         use_binary_features=True,
         binary_n=2 # How many pairs to use, multiplier of the number of tiles.
     ):
@@ -64,6 +64,7 @@ class NoveltyArchive(object):
     def updateAndGetSparseness(self, districts):
         features = self._features(districts)
         sparseness = self._makeSparseness(features)
+        print(sparseness)
 
         n_archive_added = 0
         for i, (feature, sp) in enumerate(zip(features, sparseness)):

@@ -37,6 +37,8 @@ class State:
         self.tile_bboxs = np.array(
             [ polygon.bounding_box(v) for v in self.tile_vertices ], dtype='float32'
         )
+        self.tile_hulls = [ polygon.convex_hull(v) for v in self.tile_vertices ]
+
         self.calculateNeighborGraph()
         assert type(self.population) == int
         assert self.tile_voters.shape == (self.n_tiles, 2) #Only support 2-parties for now.

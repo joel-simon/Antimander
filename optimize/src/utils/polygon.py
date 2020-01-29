@@ -1,5 +1,6 @@
 import pyclipper
 import numpy as np
+from scipy.spatial import ConvexHull
 from src.utils import polygon_x
 
 def shoelace(vertices):
@@ -52,7 +53,9 @@ def bounding_box(polygon):
         bbox[3] = max(bbox[3], y)
     return bbox
 
-    raise
+def convex_hull(polygon):
+    poly_arr = np.array(polygon, dtype='f')
+    return (poly_arr[ ConvexHull(poly_arr).vertices ]).tolist()
 
 # def union_offset(polygons, s=10000, off=5):
 #     """ A temporary hack. Union polygon

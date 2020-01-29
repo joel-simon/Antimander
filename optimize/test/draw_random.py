@@ -30,7 +30,7 @@ screen.fill((255, 255, 255))
 colors = np.random.randint(0, 255, (n_districts, 3))
 
 
-draw_districts(state, districts, n_districts, screen, colors, draw_bounding_circles=True, draw_bounding_hulls=True)
+draw_districts(state, districts, n_districts, screen, colors, draw_bounding_circles=False, draw_bounding_hulls=True)
 pygame.display.update()
 
 while True:
@@ -50,7 +50,7 @@ while True:
         if new_fitness < met(state, districts, n_districts):
             print('\nnew_fitness', new_fitness)
             districts = d2
-            draw_districts(state, districts, n_districts, screen, colors, draw_bounding_hulls=True)
+            draw_districts(state, districts, n_districts, screen, colors, draw_bounding_hulls=True, draw_bounding_circles=False)
             pygame.display.update()
         else:
             # pass

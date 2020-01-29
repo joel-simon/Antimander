@@ -40,17 +40,18 @@ cpdef list district_boundry_points(state, int[:] districts, int n_districts):
     cdef bint add_tile
     for ti in range(state.n_tiles):
         di = districts[ti]
-        x0, y0, x1, y1 = state.tile_bboxs[ti]
+        # x0, y0, x1, y1 = state.tile_bboxs[ti]
         add_tile = False
         for ti_n in state.tile_neighbors[ti]:
             if districts[ti_n] != di:
                 add_tile = True
                 break
         if add_tile or state.tile_boundaries[ti]:
-            points[di].append((x0, y0))
-            points[di].append((x1, y1))
-            points[di].append((x0, y1))
-            points[di].append((x1, y0))
+            points[di].extend(state.tile_hulls[ti])
+            # points[di].append((x0, y0))
+            # points[di].append((x1, y1))
+            # points[di].append((x0, y1))
+            # points[di].append((x1, y0))
     return points
 
 def make_random(state, n_districts):
