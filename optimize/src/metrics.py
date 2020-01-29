@@ -3,7 +3,6 @@ import numpy as np
 from src.utils import polygon
 from src.utils.minimum_circle import make_circle
 from src.metrics_x import equality, compactness, competitiveness, lost_votes, efficiency_gap
-from src.utils.convex_hull import convex_hull
 from src.districts import district_boundry_points
 
 ################################################################################
