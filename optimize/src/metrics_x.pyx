@@ -9,6 +9,7 @@ import numpy as np
 cimport numpy as np
 from scipy.spatial import ConvexHull
 from src.districts cimport district_voters, district_populations
+# from src.state cimport State
 
 ################################################################################
 # Equality
@@ -63,6 +64,29 @@ cdef inline float udist(float[:] a, float[:] b):
     cdef float y = a[1] - b[1]
     return sqrt(x*x + y*y)
 
+cpdef float polsby_popper(state, int[:] districts, int n_districts) except *:
+    cdef float[:] dist_areas      = np.zeros(n_districts, dtype='f')
+    cdef float[:] dist_perimeters = np.zeros(n_districts, dtype='f')
+    cdef float[:] tile_areas = state.tile_areas
+    cdef int ti, di
+    cdef object ti_1
+    cdef dict edge_data
+
+    for ti in range(state.n_tiles):
+        di = districts[ti]
+        dist_areas[di] += tile_areas[ti]
+
+        for ti_1, edge_data in state.tile_edges[ti].items():
+            if ti_1 == 'boundry' or districts[ti] != districts[ti_1]:
+                dist_perimeters[di] += edge_data['length']
+
+    cdef float pp_score = 0
+    for di in range(n_districts):
+        pp_score += (4 * math.pi * dist_areas[di]) / (dist_perimeters[di]*dist_perimeters[di])
+    pp_score /= n_districts
+
+    return 1.0 - pp_score
+
 ################################################################################
 # Competitiveness
 ################################################################################
@@ -105,23 +129,3 @@ cpdef float efficiency_gap(state, int[:] districts, int n_districts) except *:
         lost_b += lv[di, 1]
     cdef float score = abs(lost_a - lost_b) / state.population
     return score
-
-################################################################################
-# cpdef float compactness_polsby_popper(state, int[:] districts, int n_districts):
-#     cdef float[:] areas = np.zeros(n_districts, dtype='float32')
-#     cdef float[:] perimeters = np.zeros(n_districts, dtype='float32')
-#     cdef int ti, di, tj
-
-#     for ti in range(state.n_tiles):
-#         di = districts[ti]
-#         for tj in state.tile_neighbors[ti]:
-#             perimeters[di] += districts[ti] != districts[tj]
-#         areas[di] += 1
-
-#     cdef float p
-#     # cdef float mean_concavity = 0
-#     for di in range(n_districts):
-#         p = perimeters[di] * perimeters[di]
-#         areas[di] = 4 * math.pi * areas[di] / (p)
-
-#     return 1.0 - np.min(areas)

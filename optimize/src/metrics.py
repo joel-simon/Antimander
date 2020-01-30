@@ -2,8 +2,8 @@ import math
 import numpy as np
 from src.utils import polygon
 from src.utils.minimum_circle import make_circle
-from src.metrics_x import equality, compactness, competitiveness, lost_votes, efficiency_gap
 from src.districts import district_boundry_points
+from src.metrics_x import *
 
 ################################################################################
 
@@ -31,6 +31,18 @@ def compactness_reock(state, districts, n_districts):
     circles_area = sum( math.pi * c[2]**2 for c in circles )
     return 1.0 - ( state.area / circles_area )
 
+# def polsby_popper(state, districts, n_districts):
+#     dist_areas      = np.zeros(n_districts, dtype='f')
+#     dist_perimeters = np.zeros(n_districts, dtype='f')
 
+#     for ti in range(state.n_tiles):
+#         di = districts[ti]
+#         dist_areas[di] += state.tile_areas[ti]
 
+#         for ti_1, edge_data in state.tile_edges[ti].items():
+#             if ti_1 == 'boundry' or districts[ti] != districts[ti_1]:
+#                 dist_perimeters[di] += edge_data['length']
 
+#     pp_scores = (4 * math.pi * dist_areas) / (dist_perimeters*dist_perimeters)
+
+#     return 1.0 - pp_scores.mean()

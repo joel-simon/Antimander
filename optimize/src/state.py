@@ -23,32 +23,63 @@ class State:
         assert all(len(n) > 0 for n in self.tile_neighbors)
         self.calculateStats()
 
-        verts = [ set(v) for v in self.tile_vertices ]
-        for (i, a), (j, b) in combinations(enumerate(verts), 2):
-            if len(a) == len(b) and a & b == a:
-                print('INIT: DUPLICATE TILES FOUND', i, j)
-                exit()
-
     def calculateStats(self):
         self.area = sum(polygon.area(v) for v in self.tile_vertices)
-        self.tile_centers = np.array(
-            [ polygon.centroid(v) for v in self.tile_vertices ], dtype='float32'
-        )
-        self.tile_bboxs = np.array(
-            [ polygon.bounding_box(v) for v in self.tile_vertices ], dtype='float32'
-        )
-        self.tile_hulls = [ polygon.convex_hull(v) for v in self.tile_vertices ]
-
-        self.calculateNeighborGraph()
+        self._calculateStatsTileProperties()
+        self._calculateStatsTileEdges()
+        self._calculateNeighborGraph()
+        print(self.tile_voters.shape)
+        print(self.population)
         assert type(self.population) == int
-        assert self.tile_voters.shape == (self.n_tiles, 2) #Only support 2-parties for now.
+        assert (self.tile_voters.shape == (self.n_tiles, 2)), self.tile_voters.shape #Only support 2-parties for now.
         assert self.tile_populations.shape == (self.n_tiles,)
         assert self.tile_boundaries.shape  == (self.n_tiles,), self.tile_boundaries.shape
         assert self.tile_centers.shape     == (self.n_tiles, 2)
         assert len(self.tile_vertices) == self.n_tiles
         assert len(self.tile_neighbors) == self.n_tiles
 
-    def calculateNeighborGraph(self):
+    def _calculateStatsTileProperties(self):
+        self.tile_centers = np.array(
+            [ polygon.centroid(v) for v in self.tile_vertices ], dtype='f'
+        )
+        self.tile_areas = np.array(
+            [ polygon.area(v) for v in self.tile_vertices ], dtype='f'
+        )
+        self.tile_bboxs = np.array(
+            [ polygon.bounding_box(v) for v in self.tile_vertices ], dtype='f'
+        )
+        self.tile_hulls = [ polygon.convex_hull(v) for v in self.tile_vertices ]
+
+    def _calculateStatsTileEdges(self):
+        """ The districts come in as a
+        """
+        self.tile_edges = [ #[ {tj => [length, edge_list] } } ]
+            defaultdict(lambda: { 'length': 0, 'edges':[  ] })
+            for _ in range(self.n_tiles)
+        ]
+        # Vert to its tile indexes.
+        v2pi = defaultdict(set)
+        for ti, poly in enumerate(self.tile_vertices):
+            for vert in poly:
+                v2pi[ vert ].add(ti)
+
+        for ti, poly in enumerate(self.tile_vertices):
+            for vi, vert_a in enumerate(poly):
+                vert_b = poly[ (vi+1) % len(poly) ]
+                edge = (vert_a, vert_b)
+                length = math.hypot(vert_a[0] - vert_b[0], vert_a[1] - vert_b[1])
+                other_tiles = v2pi[ vert_a ].intersection(v2pi[vert_b])
+
+                if len(other_tiles) == 1:# Is a boundry tile
+                    self.tile_edges[ ti ][ 'boundry' ][ 'length' ] += length
+                    self.tile_edges[ ti ][ 'boundry' ][ 'edges' ].append(( vert_a, vert_b ))
+                else:
+                    for ti_other in other_tiles:
+                        if ti_other != ti:
+                            self.tile_edges[ ti ][ ti_other ][ 'length' ] += length
+                            self.tile_edges[ ti ][ ti_other ][ 'edges' ].append(( vert_a, vert_b ))
+
+    def _calculateNeighborGraph(self):
         self.neighbor_graph = []
         for i in range(self.n_tiles):
             ng = dict()

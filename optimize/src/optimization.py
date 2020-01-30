@@ -201,10 +201,10 @@ def optimize(config, _state, outdir, save_plots=True):
         print('-'*80)
         print(f'Optimizing {opt_i} / {len(states)}')
         print(f'\tNum tiles: {state.n_tiles}\n\tThreshold: {threshold}')
-        last_phase = opt_i == len(states)-1
+        is_last_phase = opt_i == len(states)-1
         used_metrics = [ getattr(metrics, name) for name in config['metrics'] if name != 'novelty' ]
         used_contraints = []
-        use_novelty = ('novelty' in config['metrics']) and not last_phase
+        use_novelty = ('novelty' in config['metrics']) and not is_last_phase
         hypervolume_mask = [ True ] * len(used_metrics)
         if feasibleinfeasible:
             equality = partial(metrics.equality, threshold=threshold)
@@ -276,7 +276,7 @@ def optimize(config, _state, outdir, save_plots=True):
             result = minimize(
                 problem,
                 algorithm,
-                ('n_gen', config['n_gens']),
+                ('n_gen', config['n_gens'] * (1 + (3 * is_last_phase))),
                 seed=0,
                 verbose=False,
                 save_history=False
