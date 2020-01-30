@@ -11,15 +11,17 @@ from src.draw import draw_districts
 
 n_districts = 5
 # state = State.fromFile('data/NC.json')
-state = State.makeRandom(1024, seed=1)
+state = State.makeRandom(512, seed=1)
+# state, mapping = state.contract()
 # state, mapping = state.contract()
 
-met = metrics.compactness_convex_hull
-# met = metrics.compactness_reock
+# met = metrics.compactness_convex_hull
+met = metrics.polsby_popper
+
 mutate = True
 
 districts = districts.make_random(state, n_districts)
-tolerance = 0.3
+tolerance = 0.5
 print(fix_pop_equality(state, districts, n_districts, tolerance=tolerance, max_iters=1000))
 
 pygame.init()
@@ -29,15 +31,20 @@ screen.fill((255, 255, 255))
 
 colors = np.random.randint(0, 255, (n_districts, 3))
 
+draw_kwargs = {
+    "draw_bounding_hulls": False,
+    "draw_bounding_circles": False,
+    "draw_boundry_edges": True
+}
 
-draw_districts(state, districts, n_districts, screen, colors, draw_bounding_circles=False, draw_bounding_hulls=True)
+draw_districts(state, districts, n_districts, screen, colors, **draw_kwargs)
 pygame.display.update()
-
+step = 0
 while True:
     if mutate:
         d2 = districts.copy()
 
-        n_pop = state.tile_populations.sum()
+        n_pop = np.sum(state.tile_populations)
         ideal_pop = n_pop / n_districts
         pop_max = ideal_pop * (1+tolerance)
         pop_min = ideal_pop * (1-tolerance)
@@ -45,16 +52,17 @@ while True:
         mutation.mutate(d2, n_districts, state, 0.00, pop_min, pop_max)
 
         new_fitness = met(state, d2, n_districts)
-        # print('new_fitness', new_fitness)
 
         if new_fitness < met(state, districts, n_districts):
-            print('\nnew_fitness', new_fitness)
+            print('\nnew_fitness', step, new_fitness)
             districts = d2
-            draw_districts(state, districts, n_districts, screen, colors, draw_bounding_hulls=True, draw_bounding_circles=False)
+            draw_districts(state, districts, n_districts, screen, colors, **draw_kwargs)
             pygame.display.update()
         else:
             # pass
             print('.', end = '')
+
+        step += 1
 
     for event in pygame.event.get():
         if event.type == pygame.KEYDOWN:

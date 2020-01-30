@@ -38,8 +38,8 @@ def fix_pop_equality(state, partition, n_districts, tolerance=.10, max_iters=100
                     assert len(options)
                     t_other = random.choice(options)
                     d_other = partition[t_other]
-                    d_pop[d_i] -= state.tile_populations[t_i].sum()
-                    d_pop[d_other] += state.tile_populations[t_i].sum()
+                    d_pop[d_i] -= state.tile_populations[t_i]
+                    d_pop[d_other] += state.tile_populations[t_i]
                     partition[t_i] = d_other
                     d_front.remove(t_i)
                     fronts[d_other].add(t_i)
@@ -52,8 +52,8 @@ def fix_pop_equality(state, partition, n_districts, tolerance=.10, max_iters=100
                     if len(options):
                         t_other = random.choice(options)
                         d_other = partition[t_other]
-                        d_pop[d_i] += state.tile_populations[t_other].sum()
-                        d_pop[d_other] -= state.tile_populations[t_other].sum()
+                        d_pop[d_i] += state.tile_populations[t_other]
+                        d_pop[d_other] -= state.tile_populations[t_other]
                         partition[t_other] = d_i
                         d_front.add(t_other)
                         fronts[d_other].remove(t_other)
