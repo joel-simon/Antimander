@@ -86,6 +86,8 @@ class DistrictProblem(Problem):
         # Dont count novelty in the hypervolume.
         hv = self.hv.calc(out['F'][:, self.hypervolume_mask])
         self.hv_history.append(round(hv, 6))
+        if hasattr(kwargs['algorithm'],'hv_history'):
+            kwargs['algorithm'].hv_history.append(round(hv,6))
         if self.use_novelty:
             novelty = self.archive.updateAndGetSparseness(districts)
             novelty = 1.0 - ( novelty * 0.5 )

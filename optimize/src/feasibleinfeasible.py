@@ -70,6 +70,8 @@ class FI_algo_mixin(object):
         #each sub search algorithm can take in a mask that will mask out some of the objectives
         #that way, infeasible can be guided towards e.g. feasibility + novelty; while feasible pop can focus on other objectives
         self.mask = mask
+        self.hv_history = []
+        self.pop_size_history = []
         super().initialize(problem,**kwargs)
 
     #helper function to create masked fitness values (a view of metrics for a particular sub-population)
@@ -172,6 +174,10 @@ class FI_Algo(Algorithm):
         if len(feas_algo.pop)>0:   #feasible pop may sometimes have no members (at beginning of search)
             feas_algo.pop = feas_algo.survival.do(feas_algo.problem, feas_algo.pop, feas_algo.pop_size, algorithm=feas_algo)
         infeas_algo.pop = infeas_algo.survival.do(infeas_algo.problem, infeas_algo.pop, infeas_algo.pop_size, algorithm=infeas_algo)
+
+        #log population size
+        feas_algo.pop_size_history.append(len(feas_algo.pop))
+        infeas_algo.pop_size_history.append(len(infeas_algo.pop))
 
         #set the reported pop for this 2POP algorithm to be the feasible individuals
         self.pop = feas_algo.pop
