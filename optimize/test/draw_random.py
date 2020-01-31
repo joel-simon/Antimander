@@ -11,17 +11,17 @@ from src.draw import draw_districts
 
 n_districts = 5
 # state = State.fromFile('data/NC.json')
-state = State.makeRandom(512, seed=1)
+state = State.makeRandom(1024, seed=1)
 # state, mapping = state.contract()
 # state, mapping = state.contract()
 
-# met = metrics.compactness_convex_hull
-met = metrics.polsby_popper
+met = metrics.compactness_convex_hull
+# met = metrics.polsby_popper
 
 mutate = True
 
 districts = districts.make_random(state, n_districts)
-tolerance = 0.5
+tolerance = 0.3
 print(fix_pop_equality(state, districts, n_districts, tolerance=tolerance, max_iters=1000))
 
 pygame.init()
