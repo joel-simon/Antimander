@@ -2,8 +2,12 @@ import { Chart } from 'chart.js'
 type Point = { x: number, y: number}
 
 export function update_chart(
-    chart, values: number[][], names:string[], idx1:number, idx2: number,
-    filters: number[]
+    chart,
+    values: number[][],
+    names:string[],
+    idx1:number,
+    idx2: number,
+    ranges: [number, number][]
 ){
     const min_max = []
     for (let i = 0; i < values[0].length; ++i) {
@@ -11,13 +15,14 @@ export function update_chart(
         min_max.push([ Math.min(...v), Math.max(...v) ])
     }
 
-    const thresholds = min_max.map(([min, max], idx) => {
-        return min + (max-min) * (1.0 - filters[idx])
-    })
-    // console.log(min_max);
+    // const thresholds = min_max.map(([min, max], idx) => {
+    //     return min + (max-min) * (1.0 - filters[idx])
+    // })
     const values_filtered = values.map(v => {
         for (let i = 0; i < v.length; i++) {
-            if (v[i] > thresholds[i]) return false
+            if (v[i] < ranges[i][0] || v[i] > ranges[i][1]) {
+                return false
+            }
         }
         return true
     })

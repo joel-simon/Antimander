@@ -1,18 +1,20 @@
 
-export type Partition = number[]
+export type District = number[]
+
+export type Edge = [ number, number ]
 
 export type TileEdge = {
-    adjacent_cell: number,
-    vertices: [ number, number ]
+    length: number,
+    edges: Edge[][]
 }
 
-export type TileMap = {
+export type State = {
     vertices: number[][][],
-    neighbours: number[][],
+    neighbors: number[][],
     populations: number[],
     boundaries: number[],
     voters: number[][],
     population: number,
     bbox: number[]
-    // tile_edges: TileEdge[][]
+    tile_edges: TileEdge[]
 }

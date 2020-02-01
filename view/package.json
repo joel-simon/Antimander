@@ -5,6 +5,7 @@
   "main": "index.js",
   "dependencies": {
     "chart.js": "^2.8.0",
+    "d3": "^5.15.0",
     "randomcolor": "^0.5.4",
     "tsc-watch": "^2.4.0",
     "tsify": "^4.0.1",

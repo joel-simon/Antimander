@@ -2,11 +2,21 @@
 <html lang="en">
 <head>
     <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-    <title>Test</title>
+    <title>Antimander Viewer</title>
+
+    <link href="style/slider.css" rel="stylesheet" type="text/css" />
+    <link href="style/d3.parcoords.css" rel="stylesheet" type="text/css" />
+    <link href="style/parallel-coordinates.css" rel="stylesheet" type="text/css" />
+
+    <script src="lib/d3.min.js"></script>
+    <script src="lib/d3.svg.multibrush.js"></script>
+    <script src="lib/d3.parcoords.js"></script>
+    <script src="https://d3js.org/d3-color.v1.min.js"></script>
+    <script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
+    <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+
 
     <script src=//cdnjs.cloudflare.com/ajax/libs/seedrandom/2.3.10/seedrandom.min.js></script>
-    <link href="style/slider.css" rel="stylesheet" type="text/css" />
-
     <script src="./bundle.js" type="module"></script>
     <style>
         * {
@@ -14,22 +24,28 @@
             box-sizing: border-box;
         }
         body {
+            width: 100vw;
+            height: 100vh;
+            margin: 0px;
             text-align: center;
         }
         canvas {
-            /*float: left;*/
+        }
+        #top_row {
+            width: 100vw;
         }
         #pareto_container {
-            width: 40vw;
+            width: 400px;
+            height:
             top: 0px;
             float: left;
             margin: 5px;
         }
         #partition_container {
-            width: 40vw;
+            width: 100vw;
             top:0px;
             left: 40vw;
-            height: 100vh;
+            /*height: 800px;*/
             float: left;
             margin: 5px;
         }
@@ -63,16 +79,27 @@
     </style>
 </head>
 <body>
-    <div id=pareto_container>
-        <div>
-            <div id='metric_option_a'></div>
-            <div id='metric_option_b'></div>
+    <dir id='top_row'>
+        <div id=pareto_container>
+            <div>
+                <div id='metric_option_a'></div>
+                <div id='metric_option_b'></div>
+            </div>
+            <canvas id="pareto_front" width=300px height=300px></canvas>
+            <div id=sliders_container></div>
         </div>
-        <canvas id="pareto_front" width=400px height=400px></canvas>
-        <div id=sliders_container></div>
-    </div>
+        <div id="parcoords" class="parcoords" style="width:400px;height:300px;"></div>
+
+    </dir>
     <div id=partition_container>
-        <canvas id="partition" width=600px height=300px/></canvas>
+        <canvas id="partition" width=800px height=500px/></canvas>
+        <div id="" style="width:200px;">
+          <select id="partition_draw_mode">
+            <option value="voters">Voters:</option>
+            <option value="population">Population</option>
+            <option value="districts">Districts</option>
+          </select>
+        </div>
         <table id='info_table'></table>
         <p id='lost_votes_summary'> </p>
     </div>

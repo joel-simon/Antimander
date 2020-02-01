@@ -182,7 +182,7 @@ class FI_Algo(Algorithm):
         #set the reported pop for this 2POP algorithm to be the feasible individuals
         self.pop = feas_algo.pop
 
-        bb()
+        # bb()
 
 
 #new minimize call that works for feas/infeasible search

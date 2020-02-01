@@ -1,10 +1,14 @@
 import pygame
 import colorsys
+import numpy as np
 from pygame import gfxdraw
 from src.test import merge_polygons
 from collections import defaultdict
 from src.metrics import bounding_circles, bounding_hulls
 BLACK = (0, 0, 0)
+
+def normalize(a):
+    return (a - np.min(a)) / np.ptp(a)
 
 def draw_districts(
     state,
@@ -27,14 +31,8 @@ def draw_districts(
     scale = min(w/(xmax-xmin), h/(ymax-ymin))
     pmap = lambda p:(int((p[0]-xmin)*scale)+dx, h-int((p[1]-ymin)*scale)+dy)
 
-    # print(state.tile_voters[:, 0].shape, state.tile_voters.sum(axis=1).shape)
-    tile_percentages = state.tile_voters[:, 0] / state.tile_voters.sum(axis=1)
-    tp_min, tp_max = (tile_percentages.min(), tile_percentages.max())
-    tile_percentages = (tile_percentages - tp_min) / (tp_max - tp_min)
-    # tile_colors = []
-    # rgb = colorsys.hsv_to_rgb(i / 300., 1.0, 1.0)
-    # print(i, [round(255*x) for x in rgb])
-    # print(percentages)
+    vote_percentages = normalize(state.tile_voters[:, 0] / state.tile_voters.sum(axis=1))
+    populations = normalize(state.tile_populations)
 
     def get_color(p):
         h = 237/360 if p < 0.5 else 1.0
@@ -44,13 +42,9 @@ def draw_districts(
         district = districts[ti]
         vertices = [ pmap(p) for p in state.tile_vertices[ti] ]
 
-        percent = tile_percentages[ti]
-        # color = [ round(255*x) for x in colorsys.hsv_to_rgb(percent/3, 1.0, 1.0) ]
-        # print(percent, color)
-
-        # v = state.tile_voters[/ti].sum()
-        # print(v, state.tile_voters[ti, 0]/v, state.tile_voters[ti, 1]/v)
-        color = get_color(percent)#(int(255*percent), 0, 0)
+        # value = vote_percentages[ti]
+        value = populations[ti]
+        color = get_color(value)
 
         gfxdraw.filled_polygon(screen, vertices, color )
         pygame.draw.polygon(screen, (50, 50, 50), vertices, 1)

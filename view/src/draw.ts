@@ -1,53 +1,83 @@
-import { Partition, TileMap, TileEdge } from './types'
+import { District, State, TileEdge } from './types'
+declare var d3: any;
 
-function polygon(ctx, points: number[][], scale:number=1) {
+function polygon(ctx, points: number[][]) {
     ctx.beginPath()
-    ctx.moveTo(scale*points[0][0], scale*points[0][1])
+    ctx.moveTo(points[0][0], points[0][1])
     for (let i = 1; i < points.length; i++) {
-        ctx.lineTo(scale*points[i][0], scale*points[i][1])
+        ctx.lineTo(points[i][0], points[i][1])
     }
-    ctx.lineTo(scale*points[0][0], scale*points[0][1])
+    ctx.lineTo(points[0][0], points[0][1])
     ctx.closePath()
 }
 
-export function draw_partition(
+export function draw_district(
     canvas: HTMLCanvasElement,
     ctx: any,
-    map: TileMap,
-    partition: Partition,
-    colors: string[]
+    state: State,
+    district: District,
+    bounding_hulls: number[][][],
+    colors: string[],
+    mode: string
 ) {
-    const [ xmin, ymin, xmax, ymax ] = map.bbox
-    partition.forEach((district_idx:number, tile_idx:number) => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const [ xmin, ymin, xmax, ymax ] = state.bbox
+    const scale = Math.min(canvas.width/(xmax-xmin), canvas.height/(ymax-ymin))
+
+    const pmap = ([x, y]: [number, number]): [number, number] => {
+        return [(x-xmin) * scale, canvas.height - (y-ymin) * scale]
+    }
+
+    let tile_colors
+    if (mode == 'voters') {
+        // Colors are the normalized voter ratios.
+        const ratios = state.voters.map(([ v1, v2 ]) => v1/v2)
+        const rmin = Math.min(...ratios)
+        const rmax = Math.max(...ratios)
+        const normed_ratios = ratios.map(r => (r-rmin) / (rmax-rmin))
+        tile_colors = normed_ratios.map(v => d3.interpolateRdBu(v))
+    }  else if (mode == 'districts') {
+        const n_tiles = state.vertices.length
+        tile_colors = Array(n_tiles).fill(0).map((_, tid) => colors[district[tid]])
+    } else {
+        // Colors are the normalized voter ratios.
+        const pmin = Math.min(...state.populations)
+        const pmax = Math.max(...state.populations)
+        const normed_pops = state.populations.map(r => (r-pmin) / (pmax-pmin))
+        tile_colors = normed_pops.map(v => d3.interpolateGreens(v))
+    }
+
+    district.forEach((di:number, ti:number) => {
         ctx.lineWidth = 1
-        ctx.fillStyle = colors[district_idx]
-        ctx.strokeStyle = 'lightgray'//colors[district_idx]
-
-        const scale = Math.min(canvas.width/(xmax-xmin), canvas.height/(ymax-ymin))
-
-        polygon(ctx, map.vertices[tile_idx].map(([x, y]) => {
-            return [(x-xmin) * scale, canvas.height - (y-ymin) * scale]
-        }))
-
+        ctx.fillStyle = tile_colors[ti]
+        ctx.strokeStyle = 'darkgray'
+        polygon(ctx, state.vertices[ti].map(pmap))
         ctx.fill()
         ctx.stroke()
-
-        ctx.strokeStyle = 'black'
-        ctx.lineWidth = 3
-        // for (const edge of map.tile_edges[tile_idx]) {
-        //     const adjacent_district = partition[edge.adjacent_cell]
-        //     if (edge.adjacent_cell < 0 || adjacent_district != district_idx) {
-        //         const [v1, v2] = edge.vertices
-
-        //         const [x1, y1] = map.tile_vertices[tile_idx][v1]
-        //         const [x2, y2] = map.tile_vertices[tile_idx][v2]
-
-        //         ctx.beginPath()
-        //         ctx.moveTo(x1*scale, y1*scale)
-        //         ctx.lineTo(x2*scale, y2*scale)
-        //         ctx.stroke()
-        //     }
-        // }
-
     })
+
+    ctx.lineWidth = 3
+    ctx.strokeStyle = 'black'
+    state.tile_edges.forEach((tile_edge_data, ti0) => {
+        for (let ti1 of Object.keys(tile_edge_data))  {
+            const edge_data: TileEdge = tile_edge_data[ti1]
+            if (ti1 == 'boundry' || district[ti0] != district[ti1]) {
+                for (const [ p1, p2 ] of edge_data.edges) {
+                    ctx.beginPath()
+                    ctx.moveTo(...pmap(p1))
+                    ctx.lineTo(...pmap(p2))
+                    ctx.closePath()
+                    ctx.stroke()
+                }
+            }
+        }
+    })
+    // bounding_hulls.forEach(hull => {
+    //     ctx.lineWidth = 1
+    //     ctx.strokeStyle = 'black'
+    //     polygon(ctx, hull.map(([x, y]) => {
+    //         return [(x-xmin) * scale, canvas.height - (y-ymin) * scale]
+    //     }))
+    //     ctx.stroke()
+    // })
 }
