@@ -199,6 +199,7 @@ class State:
     def makeRandom(cls, n_tiles=100, n_parties=2, seed=None, n_cities=3):
         from src.utils.voronoi import smoothedRandomVoronoi
         if seed is not None:
+            random.seed(seed)
             np.random.seed(seed)
         cells = smoothedRandomVoronoi(n_tiles=n_tiles, steps=5, seed=seed)
         boundry_tiles = [ any( e['adjacent_cell'] < 0 for e in c['faces']) for c in cells ]
@@ -219,7 +220,7 @@ class State:
 
         # Assumes cities skew to one party.
         for ti in random.sample(list(range(n_tiles)), n_cities):
-            tile_populations[ti] = 15000
+            tile_populations[ti] = 45000 / n_cities
             tile_voters[ti, 0] = (voter_turnout * 0.8 * tile_populations[ti])
             tile_voters[ti, 1] = (voter_turnout * 0.2 * tile_populations[ti])
 

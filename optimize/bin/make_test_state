@@ -9,7 +9,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('-t', '--n_tiles', default=100, type=int)
     parser.add_argument('-o', '--out', required=True)
+    parser.add_argument('-s', '--seed', required=False, default=1, type=int)
+    parser.add_argument('-c', '--n_cities', required=False, default=0, type=int)
     args = parser.parse_args()
-    state = State.makeRandom(args.n_tiles)
+    state = State.makeRandom(
+        n_parties=2,
+        n_tiles=args.n_tiles,
+        n_cities=args.n_cities,
+        seed=args.seed
+    )
     with open(os.path.join(args.out), 'w') as f:
         json.dump(state.toJSON(), f)
