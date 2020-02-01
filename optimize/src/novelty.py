@@ -64,7 +64,6 @@ class NoveltyArchive(object):
     def updateAndGetSparseness(self, districts):
         features = self._features(districts)
         sparseness = self._makeSparseness(features)
-        print(sparseness)
 
         n_archive_added = 0
         for i, (feature, sp) in enumerate(zip(features, sparseness)):

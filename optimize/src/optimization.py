@@ -133,18 +133,24 @@ def upscale(districts, mapping):
             upscaled[i, j] = districts[i, mapping[j]]
     return upscaled
 
-def log_algorithm(algorithm, text, pbar, HV, hypervolume_mask):
+def log_algorithm(algorithm, text, pbar, HV, hypervolume_mask, use_novelty):
     """ A function passed as the 'callback' genetic algorithm, handles logging. """
     if algorithm.history is None:
         algorithm.history = []
     F = algorithm.pop.get("F")
-    # print('\n', F.shape, hypervolume_mask)
-    hv = round(HV.calc(F[:, hypervolume_mask]), 5)
-    algorithm.history.append(hv)
-    if hasattr(algorithm, 'pop_size_history'):
-        algorithm.pop_size_history.append(int(F.shape[0]))
-    pbar.update(1)
-    pbar.set_description("%s: %s" % (text, hv))
+
+    # TODO figure out why this is needed.
+    # print('\n', text, F.shape, hypervolume_mask, use_novelty)
+    if F.shape[1] == sum(hypervolume_mask) + use_novelty:
+        if use_novelty:
+            hv = round(HV.calc(F[:, :-1]), 5)
+        else:
+            hv = round(HV.calc(F), 5)
+        algorithm.history.append(hv)
+        if hasattr(algorithm, 'pop_size_history'):
+            algorithm.pop_size_history.append(int(F.shape[0]))
+        pbar.update(1)
+        pbar.set_description("%s: %s" % (text, hv))
 
 def optimize(config, _state, outdir, save_plots=True):
     ############################################################################
@@ -232,17 +238,15 @@ def optimize(config, _state, outdir, save_plots=True):
                 feas_hv_mask.append(False)
                 infeas_hv_mask.append(False)
 
-            print(len(feas_mask), len(infeas_mask), len(feas_hv_mask), len(infeas_hv_mask))
-            assert len(feas_mask) == len(infeas_mask) == len(feas_hv_mask) == len(infeas_hv_mask)
-
             feas_algo = NSGA2_FI(
                 mutation=DistrictMutation(state, config['n_districts'], threshold),
                 callback=partial(
                     log_algorithm,
-                    text='Feas HV',
+                    text='  Feas HV',
                     HV=Hypervolume(ref_point=np.ones(sum(feas_hv_mask))),
                     pbar=tqdm(total=n_gens, position=0),
-                    hypervolume_mask=feas_hv_mask
+                    hypervolume_mask=feas_hv_mask,
+                    use_novelty=use_novelty
                 ),
                 **algorithm_args
             )
@@ -254,7 +258,8 @@ def optimize(config, _state, outdir, save_plots=True):
                     text='InFeas HV',
                     HV=Hypervolume(ref_point=np.ones(sum(infeas_hv_mask))),
                     pbar=tqdm(total=n_gens, position=1),
-                    hypervolume_mask=infeas_hv_mask
+                    hypervolume_mask=infeas_hv_mask,
+                    use_novelty=use_novelty
                 ),
                 **algorithm_args
             )
@@ -277,25 +282,25 @@ def optimize(config, _state, outdir, save_plots=True):
                 verbose=False
             )
             save_results(outdir, config, state, result, opt_i, feas_algo.history, infeas_algo.history)
-            # if save_plots:
-            #     import matplotlib.pyplot as plt
-            #     plt.figure()
-            #     plt.plot(feas_algo.history, label='Feas Phase: %i'%opt_i)
-            #     plt.plot(infeas_algo.history, label='Infeas Phase: %i'%opt_i)
-            #     plt.xlabel('Generations')
-            #     plt.ylabel('Hypervolume')
-            #     plt.legend()
-            #     plt.savefig(os.path.join(outdir, 'hv_history_%i.png'%opt_i))
+            if save_plots:
+                import matplotlib.pyplot as plt
+                plt.figure()
+                plt.plot(feas_algo.history, label='Feas Phase: %i'%opt_i)
+                plt.plot(infeas_algo.history, label='Infeas Phase: %i'%opt_i)
+                plt.xlabel('Generations')
+                plt.ylabel('Hypervolume')
+                plt.legend()
+                plt.savefig(os.path.join(outdir, 'hv_history_%i.png'%opt_i))
 
-            #     plt.figure()
-            #     plt.plot(feas_algo.history, label='Feas Population: %i'%opt_i)
-            #     plt.plot(infeas_algo.history, label='Infeas Population: %i'%opt_i)
-            #     plt.xlabel('Generations')
-            #     plt.ylabel('Population')
-            #     plt.legend()
-            #     plt.savefig(os.path.join(outdir, 'pop_history_%i.png'%opt_i))
-            # print('')
-            # print('Final HV %f'%algorithm.history[-1])
+                plt.figure()
+                plt.plot(feas_algo.pop_size_history, label='Feas Population: %i'%opt_i)
+                plt.plot(infeas_algo.pop_size_history, label='Infeas Population: %i'%opt_i)
+                plt.xlabel('Generations')
+                plt.ylabel('Population')
+                plt.legend()
+                plt.savefig(os.path.join(outdir, 'pop_history_%i.png'%opt_i))
+            print('')
+            print('Final HV %f'%feas_algo.history[-1])
 
         else:
             hypervolume_mask = [ True ] * len(used_metrics)

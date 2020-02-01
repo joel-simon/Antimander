@@ -1,10 +1,10 @@
 {
-    "feasibleinfeasible": false,
+    "feasibleinfeasible": true,
     "max_start_tiles": 300,
-    "n_districts": 8,
+    "n_districts": 5,
     "n_gens": 400,
     "n_gens_final": 400,
     "pop_size": 400,
     "_metrics": [ "efficiency_gap", "compactness_convex_hull", "competitiveness" ],
-    "metrics": [ "efficiency_gap", "compactness", "competitiveness"]
+    "metrics": [ "efficiency_gap", "compactness", "competitiveness", "novelty"]
 }
