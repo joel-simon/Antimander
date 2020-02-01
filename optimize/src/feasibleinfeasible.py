@@ -176,8 +176,8 @@ class FI_Algo(Algorithm):
         infeas_algo.pop = infeas_algo.survival.do(infeas_algo.problem, infeas_algo.pop, infeas_algo.pop_size, algorithm=infeas_algo)
 
         #log population size
-        feas_algo.pop_size_history.append(len(feas_algo.pop))
-        infeas_algo.pop_size_history.append(len(infeas_algo.pop))
+        # feas_algo.pop_size_history.append(len(feas_algo.pop))
+        # infeas_algo.pop_size_history.append(len(infeas_algo.pop))
 
         #set the reported pop for this 2POP algorithm to be the feasible individuals
         self.pop = feas_algo.pop
