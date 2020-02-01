@@ -63,17 +63,17 @@ class DistrictProblem(Problem):
     """ This class just calls the objective functions.
     """
     def __init__( self, state, n_districts, n_iters, use_novelty, used_metrics,
-                  used_contraints=[], *args, **kwargs ):
+                  used_constraints=[], *args, **kwargs ):
         super().__init__(
             n_var=state.n_tiles,
             n_obj=len(used_metrics)+use_novelty,
-            n_constr=len(used_contraints),
+            n_constr=len(used_constraints),
             type_var=np.integer, *args, **kwargs
         )
         self.state = state
         self.n_districts = n_districts
         self.used_metrics = used_metrics
-        self.used_contraints = used_contraints
+        self.used_constraints = used_constraints
         self.use_novelty = use_novelty
         if self.use_novelty:
             print('Making novelty archive...')
@@ -85,9 +85,9 @@ class DistrictProblem(Problem):
             [ f(self.state, d, self.n_districts) for f in self.used_metrics ]
             for d in districts
         ])
-        if self.used_contraints:
+        if self.used_constraints:
             out['G'] = np.array([
-                [ f(self.state, d, self.n_districts) !=0 for f in self.used_contraints ]
+                [ f(self.state, d, self.n_districts) !=0 for f in self.used_constraints ]
                 for d in districts
             ])
         if self.use_novelty:
@@ -171,7 +171,7 @@ def optimize(config, _state, outdir, save_plots=True):
         mappings.append(mapping)
     states = states[::-1]
     mappings = mappings[::-1]
-    thresholds = np.linspace(0.5, 0.1, num=len(states))
+    thresholds = np.linspace(0.8, 0.1, num=len(states))
     print('Equality thresholds:', thresholds)
     ############################################################################
     """ Second, Create an initial population that has populaiton equality. """
@@ -185,12 +185,12 @@ def optimize(config, _state, outdir, save_plots=True):
         while len(seeds) < config['pop_size']:
             try:
                 dists = districts.make_random(state, config['n_districts'])
-                if not feasibleinfeasible:
-                    fix_pop_equality(
-                        state, dists, config['n_districts'],
-                        tolerance=thresholds[0],
-                        max_iters=300
-                    )
+                # if not feasibleinfeasible:
+                fix_pop_equality(
+                    state, dists, config['n_districts'],
+                    tolerance=thresholds[0],
+                    max_iters=300
+                )
                 seeds.append(dists)
                 pbar.update(1)
             except Exception as e:
@@ -208,7 +208,7 @@ def optimize(config, _state, outdir, save_plots=True):
         print(f'\tNum tiles: {state.n_tiles}\n\tThreshold: {threshold}')
         is_last_phase = opt_i == len(states)-1
         used_metrics = [ getattr(metrics, name) for name in config['metrics'] if name != 'novelty' ]
-        used_contraints = []
+        used_constraints = []
         use_novelty = ('novelty' in config['metrics']) and not is_last_phase
 
         n_gens = config['n_gens_final'] if is_last_phase else config['n_gens']
@@ -217,11 +217,13 @@ def optimize(config, _state, outdir, save_plots=True):
             "sampling":seeds,
             "crossover":DistrictCross()
         }
+
+        equality_thr = partial(metrics.equality, threshold=threshold)
+        used_constraints.append(equality_thr)
+
         if feasibleinfeasible:
             #Add a metric that is the contraints for feasible and objective for infeasible.
-            equality_thr = partial(metrics.equality, threshold=threshold)
             used_metrics.append(equality_thr)
-            used_contraints.append(equality_thr)
 
             # Feasible population seeks to maximize performance objectives.
             feas_mask = ([ True ] * (len(used_metrics)-1)) + [ False ]
@@ -269,7 +271,7 @@ def optimize(config, _state, outdir, save_plots=True):
                 n_gens,
                 use_novelty=use_novelty,
                 used_metrics=used_metrics,
-                used_contraints=used_contraints
+                used_constraints=used_constraints
             )
             result = FI_minimize(
                 problem,
@@ -308,17 +310,22 @@ def optimize(config, _state, outdir, save_plots=True):
                 hypervolume_mask.append(False)
             HV = Hypervolume(ref_point=np.array([ 1 ]*sum(hypervolume_mask)))
             for seed in seeds:
-                fix_pop_equality(
-                    state, seed, config['n_districts'],
-                    tolerance=threshold,
-                    max_iters=500
-                )
+                try:
+                    fix_pop_equality(
+                        state, seed, config['n_districts'],
+                        tolerance=threshold,
+                        max_iters=500
+                    )
+                except Exception as e:
+                    print('!', end='')
+                    pass
             algorithm = NSGA2(
                 mutation=DistrictMutation(state, config['n_districts'], threshold),
                 callback=partial(
                     log_algorithm, text='HV', HV=HV,
                     pbar=tqdm(total=n_gens),
-                    hypervolume_mask=hypervolume_mask
+                    hypervolume_mask=hypervolume_mask,
+                    use_novelty=use_novelty
                 ),
                 **algorithm_args
             )
@@ -327,7 +334,8 @@ def optimize(config, _state, outdir, save_plots=True):
                 config['n_districts'],
                 n_gens,
                 use_novelty=use_novelty,
-                used_metrics=used_metrics
+                used_metrics=used_metrics,
+                used_constraints=used_constraints
             )
             result = minimize(
                 problem,
