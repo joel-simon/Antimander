@@ -54,9 +54,17 @@ cpdef list district_boundry_points(state, int[:] districts, int n_districts):
             # points[di].append((x1, y0))
     return points
 
-def make_random(state, n_districts):
-    boundry_tiles = np.where(state.tile_boundaries)[0].tolist()
-    seeds = random.sample(boundry_tiles, n_districts)
+def make_random(state, n_districts, seed=None, seed_perim=False):
+    if seed is not None:
+        random.seed(seed)
+        np.random.seed(seed)
+
+    if seed_perim:
+        boundry_tiles = np.where(state.tile_boundaries)[0].tolist()
+        seeds = random.sample(boundry_tiles, n_districts)
+    else:
+        seeds = random.sample(list(range(state.n_tiles)), n_districts)
+
     partition = np.full(state.n_tiles, -1, dtype='i')
     indxs = np.arange(0, state.n_tiles)
     n_empty = state.n_tiles - len(seeds)
