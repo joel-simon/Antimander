@@ -1,9 +1,12 @@
 import random, math, json
 import numpy as np
-from collections import defaultdict, namedtuple
+from collections import defaultdict, Counter
 from itertools import combinations
 from src.utils import polygon
 from src.test import merge_polygons
+
+def flatten(a):
+    return [ item for sublist in a for item in sublist ]
 
 class State:
     """ The sate is static and knows nothing about districts.
@@ -13,21 +16,20 @@ class State:
         self.n_tiles = len(tile_data['populations'])
         self.tile_populations = np.array(tile_data['populations'], dtype='i')
         self.tile_voters      = np.array(tile_data['voters'], dtype='i')
-        self.tile_vertices    = [[(round(x), round(y)) for x,y in p]
-                                  for p in tile_data['vertices']]
+        self.tile_vertices    = [ polygon.pround(p) for p in tile_data['shapes'] ]
         self.tile_neighbors   = tile_data['neighbors']
         self.tile_boundaries  = np.array(tile_data['boundaries'], dtype='i')
         self.population       = tile_data['population']
         self.bbox             = tile_data['bbox']
-        assert all(len(v) > 2 for v in self.tile_vertices)
+        assert all(len(p) > 0 for p in self.tile_vertices)
         assert all(len(n) > 0 for n in self.tile_neighbors)
         self.calculateStats()
 
     def calculateStats(self):
-        self.area = sum(polygon.area(v) for v in self.tile_vertices)
         self._calculateStatsTileProperties()
         self._calculateStatsTileEdges()
         self._calculateNeighborGraph()
+        self.area = sum(self.tile_areas)
         assert type(self.population) == int
         assert (self.tile_voters.shape == (self.n_tiles, 2)), self.tile_voters.shape #Only support 2-parties for now.
         assert self.tile_populations.shape == (self.n_tiles,)
@@ -43,10 +45,7 @@ class State:
         self.tile_areas = np.array(
             [ polygon.area(v) for v in self.tile_vertices ], dtype='f'
         )
-        self.tile_bboxs = np.array(
-            [ polygon.bounding_box(v) for v in self.tile_vertices ], dtype='f'
-        )
-        self.tile_hulls = [ polygon.convex_hull(v) for v in self.tile_vertices ]
+        self.tile_hulls = [ polygon.convex_hull(flatten(v)) for v in self.tile_vertices ]
 
     def _calculateStatsTileEdges(self):
         """ The districts come in as a
@@ -55,27 +54,33 @@ class State:
             defaultdict(lambda: { 'length': 0, 'edges':[  ] })
             for _ in range(self.n_tiles)
         ]
-        # Vert to its tile indexes.
-        v2pi = defaultdict(set)
-        for ti, poly in enumerate(self.tile_vertices):
-            for vert in poly:
-                v2pi[ vert ].add(ti)
 
-        for ti, poly in enumerate(self.tile_vertices):
-            for vi, vert_a in enumerate(poly):
-                vert_b = poly[ (vi+1) % len(poly) ]
-                edge = (vert_a, vert_b)
-                length = math.hypot(vert_a[0] - vert_b[0], vert_a[1] - vert_b[1])
-                other_tiles = v2pi[ vert_a ].intersection(v2pi[vert_b])
+        v2ti = defaultdict(set) # Vert to its tile indexes.
+        v2poly = Counter()
+        for ti, polygons in enumerate(self.tile_vertices):
+            for poly in polygons:
+                for vert in poly:
+                    v2ti[ vert ].add(ti)
+                    v2poly[ vert ] += 1
 
-                if len(other_tiles) == 1:# Is a boundry tile
-                    self.tile_edges[ ti ][ 'boundry' ][ 'length' ] += length
-                    self.tile_edges[ ti ][ 'boundry' ][ 'edges' ].append(( vert_a, vert_b ))
-                else:
-                    for ti_other in other_tiles:
-                        if ti_other != ti:
-                            self.tile_edges[ ti ][ ti_other ][ 'length' ] += length
-                            self.tile_edges[ ti ][ ti_other ][ 'edges' ].append(( vert_a, vert_b ))
+        for ti, polygons in enumerate(self.tile_vertices):
+            for poly in polygons:
+                for vi, vert_a in enumerate(poly):
+                    vert_b = poly[ (vi+1) % len(poly) ]
+                    edge = (vert_a, vert_b)
+                    length = math.hypot(vert_a[0] - vert_b[0], vert_a[1] - vert_b[1])
+                    other_tiles = v2ti[ vert_a ].intersection(v2ti[vert_b])
+
+                    boundry_edge = (v2poly[ vert_a ] == 1) or (v2poly[ vert_b ] == 1)
+                    if boundry_edge:
+                        # if len(other_tiles) == 1 and :# Is a boundry tile
+                        self.tile_edges[ ti ][ 'boundry' ][ 'length' ] += length
+                        self.tile_edges[ ti ][ 'boundry' ][ 'edges' ].append(( vert_a, vert_b ))
+                    else:
+                        for ti_other in other_tiles:
+                            if ti_other != ti:
+                                self.tile_edges[ ti ][ ti_other ][ 'length' ] += length
+                                self.tile_edges[ ti ][ ti_other ][ 'edges' ].append(( vert_a, vert_b ))
 
         # Convert to regular dicts so that it can be JSON'd.
         self.tile_edges = [ dict(x) for x in self.tile_edges ]
@@ -101,13 +106,15 @@ class State:
         # Store the idx of tile this one will join into.
         to_join = np.arange(self.n_tiles, dtype='int32')
         # Turn into sets for fast intersection tests.
-        verts = [ set(v) for v in self.tile_vertices ]
+        verts = [ set(flatten(polygons)) for polygons in self.tile_vertices ]
         # For each non-star tile pick a star neighbor to join onto.
         for i in range(self.n_tiles):
             if not stars[i]:
-                options = [ j for j in self.tile_neighbors[i] if stars[j] and len(verts[i] & verts[j]) > 1 ]
+                options = [ j for j in self.tile_neighbors[i] if stars[j]  and len(verts[i] & verts[j]) > 1 ]
+                # options = [ center() ]
                 if len(options):
                     to_join[i] = random.choice(options)
+
         # Prevent created islands. If an interior tiles neighbors are all
         # combining, join into that one as well.
         for ti in range(self.n_tiles):
@@ -165,15 +172,16 @@ class State:
         # Create new polygon objects out of polygon groups.
         tile_vertices = [  ]
         for idx, pg in enumerate(polygon_groups):
-            new_vertices = merge_polygons(pg)
-            # if len(new_vertices) < 3:
-            #     print(new_vertices)
+            # polygon = merge_polygons(pg)
+            polygon = flatten(pg)
+            # if len(polygon) < 3:
+            #     print(polygon)
             #     print([len(p) for p in pg ])
             #     print( np.argwhere(mapping == idx) )
             #     for a, b in combinations(pg,2):
             #         print(len(set(a)&set(b)))
-            # assert len(new_vertices) > 2
-            tile_vertices.append(new_vertices)
+            # assert len(polygon) > 2
+            tile_vertices.append(polygon)
 
         # verts = [ set(v) for v in tile_vertices ]
         # for (i, a), (j, b) in combinations(enumerate(verts), 2):
@@ -187,7 +195,7 @@ class State:
         state = State({
             'bbox': self.bbox,
             'voters': tile_voters,
-            'vertices':    tile_vertices,
+            'shapes':    tile_vertices,
             'boundaries':  tile_boundaries,
             'neighbors' :  tile_neighbors,
             'population':  self.population,
@@ -247,7 +255,7 @@ class State:
         print('p2', tile_voters[:, 1].sum())
 
         tile_data = {
-            'vertices': [ [ (int(x*1000), int(y*1000)) for x,y in c['vertices']] for c in cells ],
+            'shapes': [ [[ (int(x*1000), int(y*1000)) for x,y in c['vertices']]] for c in cells ],
             'neighbors': tile_neighbors,
             'boundaries': tile_boundaries,
             'populations': tile_populations,
@@ -270,7 +278,7 @@ class State:
             'population': self.population,
             'populations': self.tile_populations.tolist(),
             'voters': self.tile_voters.tolist(),
-            'vertices': self.tile_vertices,
+            'shapes': self.tile_vertices,
             'neighbors': self.tile_neighbors,
             'boundaries': self.tile_boundaries.tolist(),
             'bbox': self.bbox,

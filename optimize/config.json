@@ -1,10 +1,10 @@
 {
     "feasibleinfeasible": false,
-    "max_start_tiles": 300,
-    "n_districts": 13,
+    "max_start_tiles": 400,
+    "n_districts": 8,
     "n_gens": 300,
     "n_gens_final": 300,
     "pop_size": 300,
-    "metrics": [ "efficiency_gap", "compactness", "competitiveness" ],
-    "_metrics": [ "equality" ]
+    "threshold_range": [ 0.5, 0.1 ],
+    "metrics": [ "efficiency_gap", "polsby_popper" ]
 }

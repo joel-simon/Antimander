@@ -3,7 +3,7 @@ import numpy as np
 from scipy.spatial import ConvexHull
 from src.utils import polygon_x
 
-def shoelace(vertices):
+def _shoelace(vertices):
     """ The shoelace algorithm for polgon area """
     area = 0.0
     n = len(vertices)
@@ -13,49 +13,57 @@ def shoelace(vertices):
                 (vertices[j][1] + vertices[i][1])
     return area
 
-def area(vertices):
-    if type(vertices) == np.ndarray:
-        return polygon_x.area(vertices)
-    else:
-        return abs(shoelace(vertices)) / 2
+def area(polygons):
+    # if type(vertices) == np.ndarray:
+    #     return polygon_x.area(vertices)
+    # else:
+    return sum(abs(_shoelace(p))/2 for p in polygons)
 
-def centroid(point_list):
-    x = [p[0] for p in point_list]
-    y = [p[1] for p in point_list]
-    minx, maxx = min(x), max(x)
-    miny, maxy = min(y), max(y)
-    dx = (maxx + minx) / 2
-    dy = (maxy + miny) / 2
-    return (dx, dy)
+def centroid(polygons):
+    xmin, ymin = float('inf'), float('inf')
+    xmax, ymax = float('-inf'), float('-inf')
+    for poly in polygons:
+        for x, y in poly:
+            xmin = min(xmin, x)
+            ymin = min(ymin, y)
+            xmax = max(xmax, x)
+            ymax = max(ymax, y)
+    xc = (xmin + xmax) / 2
+    yc = (ymin + ymax) / 2
+    return (xc, yc)
 
-def union(polygons, s=10000):
-    polygons = [[ (int(x*s), int(y*s)) for x,y in p ] for p in polygons ]
-    pc = pyclipper.Pyclipper()
-    pc.AddPaths(polygons, pyclipper.PT_SUBJECT, closed=True)
-    result = pc.Execute(pyclipper.CT_UNION, pyclipper.PFT_NONZERO, pyclipper.PFT_NONZERO)
-    return [[ (x/s, y/s)  for x,y in p ] for p in result ]
+# def union(polygons, s=10000):
+#     polygons = [[ (int(x*s), int(y*s)) for x,y in p ] for p in polygons ]
+#     pc = pyclipper.Pyclipper()
+#     pc.AddPaths(polygons, pyclipper.PT_SUBJECT, closed=True)
+#     result = pc.Execute(pyclipper.CT_UNION, pyclipper.PFT_NONZERO, pyclipper.PFT_NONZERO)
+#     return [[ (x/s, y/s)  for x,y in p ] for p in result ]
 
-def offset(poly, v, s=10000):
-    poly = [ (int(x*s), int(y*s)) for x,y in poly ]
-    pco = pyclipper.PyclipperOffset()
-    pco.AddPath(poly, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
-    solution = pco.Execute(v)
-    return [ (x/s, y/s) for x,y in solution[0] ]
+# def offset(poly, v, s=10000):
+#     poly = [ (int(x*s), int(y*s)) for x,y in poly ]
+#     pco = pyclipper.PyclipperOffset()
+#     pco.AddPath(poly, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
+#     solution = pco.Execute(v)
+#     return [ (x/s, y/s) for x,y in solution[0] ]
 
-def bounding_box(polygon):
-    if len(polygon) < 3:
-        raise ValueError('Polygon must have more than two points.')
+def bounding_box(polygons):
     bbox = [ float('inf'), float('inf'), float('-inf'), float('-inf')  ]
-    for x,y in polygon:
-        bbox[0] = min(bbox[0], x)
-        bbox[1] = min(bbox[1], y)
-        bbox[2] = max(bbox[2], x)
-        bbox[3] = max(bbox[3], y)
+    for poly in polygons:
+        if len(poly) < 3:
+            raise ValueError('Polygon must have more than two points.')
+        for x,y in polygon:
+            bbox[0] = min(bbox[0], x)
+            bbox[1] = min(bbox[1], y)
+            bbox[2] = max(bbox[2], x)
+            bbox[3] = max(bbox[3], y)
     return bbox
 
-def convex_hull(polygon):
-    poly_arr = np.array(polygon, dtype='f')
+def convex_hull(polygons):
+    poly_arr = np.array(polygons, dtype='f')
     return (poly_arr[ ConvexHull(poly_arr).vertices ]).tolist()
+
+def pround(polygons):
+    return [[(round(x), round(y)) for x,y in poly] for poly in polygons]
 
 # def union_offset(polygons, s=10000, off=5):
 #     """ A temporary hack. Union polygon

@@ -156,6 +156,7 @@ def optimize(config, _state, outdir, save_plots=True):
     ############################################################################
     """ The core of the code. First, contract the state graph. """
     ############################################################################
+    os.makedirs(outdir, exist_ok=False)
     print('-'*80)
     print('Starting Optimization:')
     for k, v in config.items():
@@ -171,7 +172,7 @@ def optimize(config, _state, outdir, save_plots=True):
         mappings.append(mapping)
     states = states[::-1]
     mappings = mappings[::-1]
-    thresholds = np.linspace(0.8, 0.1, num=len(states))
+    thresholds = np.linspace(*config['threshold_range'], num=len(states))
     print('Equality thresholds:', thresholds)
     ############################################################################
     """ Second, Create an initial population that has populaiton equality. """
@@ -201,7 +202,6 @@ def optimize(config, _state, outdir, save_plots=True):
     """ Run a optimization process for each resolution using the previous
         outputs as the seeds for the next. """
     ############################################################################
-    os.makedirs(outdir, exist_ok=False)
     for opt_i, (state, mapping, threshold) in enumerate(zip(states, mappings, thresholds)):
         print('-'*80)
         print(f'Optimizing {opt_i} / {len(states)}')

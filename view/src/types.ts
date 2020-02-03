@@ -9,7 +9,7 @@ export type TileEdge = {
 }
 
 export type State = {
-    vertices: number[][][],
+    shapes: [number, number][][][],
     neighbors: number[][],
     populations: number[],
     boundaries: number[],

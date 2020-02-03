@@ -9,33 +9,35 @@ from src.connectivity import can_lose
 from src.constraints import fix_pop_equality
 from src.draw import draw_districts
 
-n_districts = 5
-# state = State.fromFile('data/NC.json')
-state = State.makeRandom(1024, seed=1)
-# state, mapping = state.contract()
-# state, mapping = state.contract()
 
-met = metrics.compactness_convex_hull
-# met = metrics.polsby_popper
+state = State.fromFile('data/WI.json')
+# state = State.makeRandom(300, seed=1)
+# for _ in range(1):
+#     state, _ = state.contract(seed=0)
+#     print(state.n_tiles)
 
-mutate = True
-
-districts = districts.make_random(state, n_districts)
-tolerance = 0.3
-print(fix_pop_equality(state, districts, n_districts, tolerance=tolerance, max_iters=1000))
-
-pygame.init()
-w, h = (800, 800 )
-screen = pygame.display.set_mode((w, h))
-screen.fill((255, 255, 255))
-
-colors = np.random.randint(0, 255, (n_districts, 3))
-
+# met = metrics.compactness_convex_hull
+met = metrics.polsby_popper
+mutate = False
+n_districts = 50
+# districts = districts.make_random(state, n_districts)
+districts = np.random.randint(0, n_districts, (state.n_tiles,), dtype='i')
+tolerance = 0.5
 draw_kwargs = {
     "draw_bounding_hulls": False,
     "draw_bounding_circles": False,
-    "draw_boundry_edges": True
+    "draw_district_edges": False,
+    "draw_vertices": False,
+    "draw_neigbors_lines": True
 }
+
+# print(fix_pop_equality(state, districts, n_districts, tolerance=tolerance, max_iters=1000))
+pygame.init()
+w, h = (1200, 1200)
+screen = pygame.display.set_mode((w, h))
+screen.fill((255, 255, 255))
+colors = np.random.randint(0, 255, (n_districts, 3))
+
 
 draw_districts(state, districts, n_districts, screen, colors, **draw_kwargs)
 pygame.display.update()
@@ -69,9 +71,9 @@ while True:
             if event.key == pygame.K_ESCAPE:
                 pygame.quit()
                 quit()
-            elif event.key == pygame.K_LEFT:
-                p.mutate()
-                draw_districts(state, districts, n_districts, screen, display)
+            # elif event.key == pygame.K_LEFT:
+                # p.mutate()
+                # draw_districts(state, districts, n_districts, screen, display)
         if event.type == pygame.QUIT:
             pygame.quit()
             quit()

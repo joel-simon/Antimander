@@ -3,9 +3,8 @@ from src.utils import polygon
 from collections import defaultdict, Counter
 from itertools import combinations
 
-def merge_polygons(polygons):
-    # try:
-    start = time.time()
+def merge_overlapping_polygons(polygons):
+    # start = time.time()
     edge_faces = Counter()
     for pi, poly in enumerate(polygons):
         for vi, v in enumerate(poly):
@@ -40,3 +39,8 @@ def merge_polygons(polygons):
     #     for (i, p1), (j, p2) in combinations(enumerate(polygons), 2):
     #         print(i, j, len(set(p1) & set(p2)))
     #     raise e
+
+def merge_polygons(polygons):
+    # groups = []
+    # for poly in polygons:
+    return merge_overlapping_polygons(polygons)

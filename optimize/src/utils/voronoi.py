@@ -12,6 +12,6 @@ def smoothedRandomVoronoi(n_tiles, steps, seed=None):
             2.0,
             radii=[1.0, 0.0]
         )
-        seeds = [ polygon.centroid(c['vertices']) for c in cells ]
+        seeds = [ polygon.centroid([c['vertices']]) for c in cells ]
 
     return cells
