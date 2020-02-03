@@ -63,7 +63,7 @@ def draw_districts(
         for poly in state.tile_vertices[ti]:
             vertices = [ pmap(p) for p in poly ]
             gfxdraw.filled_polygon(screen, vertices, color )
-            pygame.draw.polygon(screen, (50, 50, 50), vertices, 1)
+            # pygame.draw.polygon(screen, (50, 50, 50), vertices, 1)
 
     if draw_vertices:
         vert_to_di = defaultdict(set)
@@ -100,6 +100,10 @@ def draw_districts(
     if draw_district_edges:
         for ti0, tile_edge_data in enumerate(state.tile_edges):
             for ti1, edge_data in tile_edge_data.items():
+                for edge in edge_data['edges']:
+                    p1, p2 = edge
+                    pygame.draw.line(screen, (50, 50, 50), pmap(p1), pmap(p2), 1)
+
                 if ti1 == 'boundry' or districts[ti0] != districts[ti1]:
                     for edge in edge_data['edges']:
                         p1, p2 = edge

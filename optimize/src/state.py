@@ -94,6 +94,11 @@ class State:
                 ng[j] = [k for k in self.tile_neighbors[j] if k in neighors]
             self.neighbor_graph.append(ng)
 
+    def _tileDist(self, i, j):
+        x1, y1 = self.tile_centers[i]
+        x2, y2 = self.tile_centers[j]
+        return math.hypot(x1-x2, y1-y2)
+
     def contract(self, seed=None):
         """ Do Star contraction to contract the graph.
             http://www.cs.cmu.edu/afs/cs/academic/class/15210-f12/www/lectures/lecture16.pdf
@@ -108,12 +113,14 @@ class State:
         # Turn into sets for fast intersection tests.
         verts = [ set(flatten(polygons)) for polygons in self.tile_vertices ]
         # For each non-star tile pick a star neighbor to join onto.
-        for i in range(self.n_tiles):
-            if not stars[i]:
-                options = [ j for j in self.tile_neighbors[i] if stars[j]  and len(verts[i] & verts[j]) > 1 ]
-                # options = [ center() ]
+        for ti in range(self.n_tiles):
+            if not stars[ti]:
+                options = [ j for j in self.tile_neighbors[ti] if stars[j] and len(verts[ti] & verts[j]) > 1 ]
+                options = [ (self._tileDist(ti, j), j) for j in options ]
+                options.sort()
                 if len(options):
-                    to_join[i] = random.choice(options)
+                    # to_join[ti] = random.choice(options)[1]
+                    to_join[ti] = options[0][1]
 
         # Prevent created islands. If an interior tiles neighbors are all
         # combining, join into that one as well.
