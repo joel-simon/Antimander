@@ -1,9 +1,9 @@
 {
     "feasibleinfeasible": false,
-    "max_start_tiles": 400,
+    "max_start_tiles": 500,
     "n_districts": 8,
-    "n_gens": 300,
-    "n_gens_final": 300,
+    "n_gens": 600,
+    "n_gens_final": 600,
     "pop_size": 300,
     "threshold_range": [ 0.5, 0.1 ],
     "metrics": [ "efficiency_gap", "polsby_popper" ]

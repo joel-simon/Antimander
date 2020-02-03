@@ -17,8 +17,8 @@ const sliders_container = document.getElementById('sliders_container')
 const partition_draw_mode = <HTMLInputElement>document.getElementById('partition_draw_mode')
 let chart
 
-canvas_partition.width  = window.innerWidth;
-canvas_partition.height = window.innerWidth * 0.4;
+canvas_partition.width  = window.innerWidth * 0.5;
+canvas_partition.height = window.innerWidth * 0.5;
 
 
 function update_text(div: HTMLElement, data, p_idx: number, colors: string[]) {
@@ -142,19 +142,20 @@ if (!urlParams.has('run') || !urlParams.has('stage')) {
 } else {
     const run   = urlParams.get('run')
     const stage = urlParams.get('stage')
-    const url   = `data/${run}/rundata_${stage}.json`
 
     let mode  = partition_draw_mode.value
     let district_idx = 0
 
-
-    fetch_json(url).then(data => {
-        if (!data) return alert(url + ' Not found.')
+    Promise.all([
+        fetch_json(`data/${run}/rundata_${stage}.json`),
+        fetch_json(`data/${run}/state_${stage}.json`)
+    ]).then(([ data, state ]) => {
+        if (!data || !state) return alert('Data not found.')
         console.log('Got data:', data)
-        const { state, solutions, values, metrics_data } = data
+        const { solutions, values, metrics_data } = data
+        data.state = state
         const { n_districts, metrics } = data.config
         const colors: string[] = Array(n_districts).fill(0).map(randomColor)
-        // let ranges = Array(values[0].length).map(() => [Infinity, -Infinity])
 
         function update() {
             draw_district(

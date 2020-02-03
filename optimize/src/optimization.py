@@ -106,10 +106,13 @@ class DistrictProblemFI(FI_problem_mixin, DistrictProblem):
 def save_results(outdir, config, state, result, opt_i, hv_history, hv_history2=None):
     with open(os.path.join(outdir, 'config.json'), 'w') as f:
         json.dump(config, f, indent=4)
+
+    with open(os.path.join(outdir, 'state_%i.json'%opt_i), 'w') as f:
+        json.dump(state.toJSON(), f)
+
     with open(os.path.join(outdir, 'rundata_%i.json'%opt_i), 'w') as f:
         json.dump({
             "config": config,
-            'state': state.toJSON(),
             'values': result.F.tolist(),
             'solutions': result.X.tolist(),
             'hv_history': hv_history,

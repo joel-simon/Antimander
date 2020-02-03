@@ -25,27 +25,30 @@ else:
 
 if len(sys.argv) == 1:
     ### Subdivide voronoi grid map. ###
-    screen = pygame.display.set_mode(( 2000, 500 ))
-    screen.fill(( 255, 255, 255 ))
-    n_districts = 20
-
-    n_divisions = 3
-    # states = [ State.makeRandom(1000, seed=seed) ]
-    # states = [ state ]
+    n_districts = 10
+    n_divisions = 2
     mappings = [ None ]
 
+    screen = pygame.display.set_mode(( 2000, 500 ))
+    screen.fill(( 255, 255, 255 ))
+
     for _ in range(n_divisions):
-        state, mapping = states[-1].contract()
+        state, mapping = states[-1].contract(seed=seed)
         states.append(state)
         mappings.append(mapping)
 
-    dists = districts.make_random(states[-1], n_districts)
+    dists = districts.make_random(states[-1], n_districts, seed=seed)
     colors = np.random.randint(0, 255, (n_districts, 3))
 
     for div_i, (state, mapping) in enumerate(zip(states[::-1], mappings[::-1])):
         dx = div_i * 500
-        draw_districts(state, dists, n_districts, screen, colors,
-                       draw_vertices=False, draw_neigbors_lines=True, dx=dx)
+        draw_districts(
+            state, dists, n_districts, screen, colors,
+            dx=dx,
+            draw_district_edges=True,
+            draw_vertices=False,
+            draw_neigbors_lines=False
+        )
         if mapping is not None:
             dists = upscale(dists[np.newaxis], mapping)[0]
 else:

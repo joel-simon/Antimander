@@ -58,24 +58,31 @@ export function draw_district(
         state.shapes[ti].forEach(poly => {
             polygon(ctx, poly.map(pmap))
             ctx.fill()
-            ctx.stroke()
+            // ctx.stroke()
         })
 
     })
 
-    ctx.lineWidth = 2
-    ctx.strokeStyle = 'black'
+
     state.tile_edges.forEach((tile_edge_data, ti0) => {
         for (let ti1 of Object.keys(tile_edge_data))  {
             const edge_data: TileEdge = tile_edge_data[ti1]
+            // for edge in edge_data['edges']:
+            //         p1, p2 = edge
+            //         pygame.draw.line(screen, (50, 50, 50), pmap(p1), pmap(p2), 1)
             if (ti1 == 'boundry' || district[ti0] != district[ti1]) {
-                for (const [ p1, p2 ] of edge_data.edges) {
-                    ctx.beginPath()
-                    ctx.moveTo(...pmap(p1))
-                    ctx.lineTo(...pmap(p2))
-                    ctx.closePath()
-                    ctx.stroke()
-                }
+                ctx.lineWidth = 2
+                ctx.strokeStyle = 'black'
+            } else {
+                ctx.lineWidth = 1
+                ctx.strokeStyle = 'gray'
+            }
+            for (const [ p1, p2 ] of edge_data.edges) {
+                ctx.beginPath()
+                ctx.moveTo(...pmap(p1))
+                ctx.lineTo(...pmap(p2))
+                ctx.closePath()
+                ctx.stroke()
             }
         }
     })
