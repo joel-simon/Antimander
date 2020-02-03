@@ -210,19 +210,27 @@ def optimize(config, _state, outdir, save_plots=True):
         print(f'Optimizing {opt_i} / {len(states)}')
         print(f'\tNum tiles: {state.n_tiles}\n\tThreshold: {threshold}')
         is_last_phase = opt_i == len(states)-1
-        used_metrics = [ getattr(metrics, name) for name in config['metrics'] if name != 'novelty' ]
-        used_constraints = []
+
+        used_metrics = []
+        used_constraints = [ partial(metrics.equality, threshold=threshold) ]
+
+        for name in config['metrics']:
+            if name == 'novelty':
+                continue
+            elif name == 'equality':
+                used_metrics.append(partial(metrics.equality, threshold=0))
+            else:
+                used_metrics.append(getattr(metrics, name))
+
         use_novelty = ('novelty' in config['metrics']) and not is_last_phase
 
         n_gens = config['n_gens_final'] if is_last_phase else config['n_gens']
+
         algorithm_args = {
             "pop_size":config['pop_size'],
             "sampling":seeds,
             "crossover":DistrictCross()
         }
-
-        equality_thr = partial(metrics.equality, threshold=threshold)
-        used_constraints.append(equality_thr)
 
         if feasibleinfeasible:
             #Add a metric that is the contraints for feasible and objective for infeasible.
@@ -312,16 +320,16 @@ def optimize(config, _state, outdir, save_plots=True):
             if use_novelty: # has to be last
                 hypervolume_mask.append(False)
             HV = Hypervolume(ref_point=np.array([ 1 ]*sum(hypervolume_mask)))
-            for seed in seeds:
-                try:
-                    fix_pop_equality(
-                        state, seed, config['n_districts'],
-                        tolerance=threshold,
-                        max_iters=500
-                    )
-                except Exception as e:
-                    print('!', end='')
-                    pass
+            # for seed in seeds:
+            #     try:
+            #         fix_pop_equality(
+            #             state, seed, config['n_districts'],
+            #             tolerance=threshold,
+            #             max_iters=500
+            #         )
+            #     except Exception as e:
+            #         print('!', end='')
+            #         pass
             algorithm = NSGA2(
                 mutation=DistrictMutation(state, config['n_districts'], threshold),
                 callback=partial(
