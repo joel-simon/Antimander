@@ -27,7 +27,7 @@ cpdef float equality(state, int[:] districts, int n_districts, float threshold=.
             d_score = 0.0
         score = fmax(score, d_score)
 
-    return min(score * 0.1, 1.0)
+    return min(score, 1.0)
 
 ################################################################################
 # Compactness
