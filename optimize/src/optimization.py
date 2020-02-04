@@ -13,7 +13,8 @@ from pymoo.algorithms.nsga2 import NSGA2
 from src import districts, metrics, mutation
 from src.state import State
 from src.constraints import fix_pop_equality
-from src.novelty import NoveltyArchive
+# from src.novelty import DistrictHistogramNoveltyArchive as NoveltyArchive
+from src.novelty import MutualTilesNoveltyArchive as NoveltyArchive
 from src.feasibleinfeasible import *
 
 def minimize(problem, algorithm,termination=None,**kwargs):
@@ -110,13 +111,17 @@ def save_results(outdir, config, state, result, opt_i, hv_history, hv_history2=N
     with open(os.path.join(outdir, 'state_%i.json'%opt_i), 'w') as f:
         json.dump(state.toJSON(), f)
 
+    with open(os.path.join(outdir, 'hv_%i.txt'%opt_i), 'w') as f:
+        for hv in hv_history:
+            f.write("%f\n" % hv)
+
     with open(os.path.join(outdir, 'rundata_%i.json'%opt_i), 'w') as f:
         json.dump({
             "config": config,
             'values': result.F.tolist(),
             'solutions': result.X.tolist(),
-            'hv_history': hv_history,
-            'hv_history2': hv_history2,
+            # 'hv_history': hv_history,
+            # 'hv_history2': hv_history2,
             'metrics_data': {
                 'lost_votes': [
                     np.asarray(metrics.lost_votes(state, x, config['n_districts'])).tolist()
@@ -216,25 +221,25 @@ def optimize(config, _state, outdir, save_plots=True):
 
         for name in config['metrics']:
             if name == 'novelty':
-                continue
-            elif name == 'equality':
-                used_metrics.append(partial(metrics.equality, threshold=0))
+                pass
+                # elif name == 'equality':
+                # used_metrics.append(partial(metrics.equality, threshold=0))
             else:
                 used_metrics.append(getattr(metrics, name))
 
         use_novelty = ('novelty' in config['metrics']) and not is_last_phase
 
-        n_gens = config['n_gens_final'] if is_last_phase else config['n_gens']
-
-        algorithm_args = {
-            "pop_size":config['pop_size'],
-            "sampling":seeds,
-            "crossover":DistrictCross()
-        }
+        if opt_i == 0:
+            n_gens = config['n_gens_first']
+        elif is_last_phase:
+            n_gens = config['n_gens_final']
+        else:
+            n_gens = config['n_gens']
 
         if feasibleinfeasible:
             #Add a metric that is the contraints for feasible and objective for infeasible.
-            used_metrics.append(equality_thr)
+            # used_metrics.append(equality_thr)
+            used_metrics.append(partial(metrics.equality, threshold=0))
 
             # Feasible population seeks to maximize performance objectives.
             feas_mask = ([ True ] * (len(used_metrics)-1)) + [ False ]
@@ -244,15 +249,18 @@ def optimize(config, _state, outdir, save_plots=True):
             infeas_mask = ([ False ] * (len(used_metrics)-1)) + [ True ]
             infeas_hv_mask = copy(infeas_mask)
 
-            # Both populations use novelty.
             if use_novelty:
-                feas_mask.append(True)
+                feas_mask.append(False)
                 infeas_mask.append(True)
                 feas_hv_mask.append(False)
                 infeas_hv_mask.append(False)
 
+            pop_size = config['pop_size']//2
             feas_algo = NSGA2_FI(
+                pop_size=pop_size,
+                sampling=seeds[:pop_size] if opt_i == 0 else seeds,
                 mutation=DistrictMutation(state, config['n_districts'], threshold),
+                crossover=DistrictCross(),
                 callback=partial(
                     log_algorithm,
                     text='  Feas HV',
@@ -260,11 +268,13 @@ def optimize(config, _state, outdir, save_plots=True):
                     pbar=tqdm(total=n_gens, position=0),
                     hypervolume_mask=feas_hv_mask,
                     use_novelty=use_novelty
-                ),
-                **algorithm_args
+                )
             )
             infeas_algo = NSGA2_FI(
-                mutation =DistrictMutation(state, config['n_districts'], 1.0),
+                pop_size=pop_size,
+                sampling=seeds[pop_size:] if opt_i == 0 else seeds,
+                crossover=DistrictCross(),
+                mutation=DistrictMutation(state, config['n_districts'], 1.0),
                 selection=TournamentSelection(func_comp=cv_agnostic_binary_tournament),
                 callback=partial(
                     log_algorithm,
@@ -273,45 +283,32 @@ def optimize(config, _state, outdir, save_plots=True):
                     pbar=tqdm(total=n_gens, position=1),
                     hypervolume_mask=infeas_hv_mask,
                     use_novelty=use_novelty
-                ),
-                **algorithm_args
+                )
             )
-            problem = DistrictProblemFI(
-                state,
-                config['n_districts'],
-                n_gens,
-                use_novelty=use_novelty,
-                used_metrics=used_metrics,
-                used_constraints=used_constraints
-            )
-            result = FI_minimize(
-                problem,
-                feas_algo,
-                infeas_algo,
-                ('n_gen', n_gens),
-                feas_mask=feas_mask,
-                infeas_mask=infeas_mask,
-                seed=0,
-                verbose=False
-            )
+            problem = DistrictProblemFI(state, config['n_districts'], n_gens,
+                                        use_novelty=use_novelty,
+                                        used_metrics=used_metrics,
+                                        used_constraints=used_constraints )
+            result = FI_minimize(problem,feas_algo,infeas_algo,('n_gen', n_gens),
+                                 feas_mask=feas_mask, infeas_mask=infeas_mask,
+                                 seed=0, verbose=False )
             save_results(outdir, config, state, result, opt_i, feas_algo.history, infeas_algo.history)
             if save_plots:
                 import matplotlib.pyplot as plt
                 plt.figure()
                 plt.plot(feas_algo.history, label='Feas Phase: %i'%opt_i)
-                plt.plot(infeas_algo.history, label='Infeas Phase: %i'%opt_i)
+                # plt.plot(infeas_algo.history, label='Infeas Phase: %i'%opt_i)
                 plt.xlabel('Generations')
                 plt.ylabel('Hypervolume')
                 plt.legend()
                 plt.savefig(os.path.join(outdir, 'hv_history_%i.png'%opt_i))
-
-                plt.figure()
-                plt.plot(feas_algo.pop_size_history, label='Feas Population: %i'%opt_i)
-                plt.plot(infeas_algo.pop_size_history, label='Infeas Population: %i'%opt_i)
-                plt.xlabel('Generations')
-                plt.ylabel('Population')
-                plt.legend()
-                plt.savefig(os.path.join(outdir, 'pop_history_%i.png'%opt_i))
+                # plt.figure()
+                # plt.plot(feas_algo.pop_size_history, label='Feas Population: %i'%opt_i)
+                # plt.plot(infeas_algo.pop_size_history, label='Infeas Population: %i'%opt_i)
+                # plt.xlabel('Generations')
+                # plt.ylabel('Population')
+                # plt.legend()
+                # plt.savefig(os.path.join(outdir, 'pop_history_%i.png'%opt_i))
             print('')
             print('Final HV %f'%feas_algo.history[-1])
 
@@ -331,6 +328,9 @@ def optimize(config, _state, outdir, save_plots=True):
             #         print('!', end='')
             #         pass
             algorithm = NSGA2(
+                pop_size=config['pop_size'],
+                sampling=seeds,
+                crossover=DistrictCross(),
                 mutation=DistrictMutation(state, config['n_districts'], threshold),
                 callback=partial(
                     log_algorithm, text='HV', HV=HV,
@@ -338,7 +338,6 @@ def optimize(config, _state, outdir, save_plots=True):
                     hypervolume_mask=hypervolume_mask,
                     use_novelty=use_novelty
                 ),
-                **algorithm_args
             )
             problem = DistrictProblem(
                 state,

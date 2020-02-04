@@ -1,50 +1,22 @@
+import math
+from itertools import combinations
+import numpy as np
 from prince import MCA
 from sklearn.decomposition import PCA
-import numpy as np
 from pykdtree.kdtree import KDTree
-
 from src import districts
 
 class NoveltyArchive(object):
-    def __init__(
-        self, state, n_districts,
-        n_seeds=200,
-        novelty_threshold=1.5,
-        archive_stagnation=3,
-        ns_K=10,
-        use_MCA=False,
-        use_binary_features=True,
-        binary_n=2 # How many pairs to use, multiplier of the number of tiles.
-    ):
+    def __init__(self, state, n_districts, novelty_threshold=1.5,
+                archive_stagnation=3,ns_K=10):
         self.state = state
+        self.n_districts = n_districts
         self.novelty_threshold = novelty_threshold
         self.archive_stagnation = archive_stagnation
         self.evals_since_last_archiving = 0
         self.ns_K = ns_K
-        self.use_MCA = use_MCA
-        self.use_binary_features = use_binary_features
-
-        if use_MCA:
-            self.dim_reduction = MCA( n_components=10 )
-        else:
-            self.dim_reduction = PCA( n_components=10 )
-
-        seeds = [ districts.make_random(state, n_districts) for _ in range(n_seeds) ]
-
-        if use_binary_features:
-            n = self.state.n_tiles * binary_n
-            self.binary_idxs_a = np.random.randint(0, high=state.n_tiles-1, size=n)
-            self.binary_idxs_b = np.random.randint(0, high=state.n_tiles-1, size=n)
-            seeds = [ self._makeBinaryFeature(f) for f in seeds ]
-
-        self.dim_reduction.fit(np.array(seeds))
-        self.archive = np.array(self.dim_reduction.transform(seeds)).tolist()
-
-    def _makeBinaryFeature(self, district):
-        """ Convert a district (an integer array) into a binary array where each
-            values corresponds to if a pair of tiles are in the same district.
-        """
-        return district[ self.binary_idxs_a ] == district[ self.binary_idxs_b ]
+        # seeds = [ districts.make_random(state, n_districts) for _ in range(n_seeds) ]
+        # self.archive = self._features(seeds)
 
     def _makeSparseness(self, features):
         feature_arr = np.array(features)
@@ -54,15 +26,10 @@ class NoveltyArchive(object):
         return sparseness
 
     def _features(self, districts):
-        if self.use_binary_features:
-            x = np.stack([ self._makeBinaryFeature(d) for d in districts ])
-        else:
-            x = districts
-        x_reduced = np.array(self.dim_reduction.transform(x))
-        return x_reduced
+        raise NotImplementedError()
 
     def updateAndGetSparseness(self, districts):
-        features = self._features(districts)
+        features   = self._features(districts)
         sparseness = self._makeSparseness(features)
 
         n_archive_added = 0
@@ -83,3 +50,65 @@ class NoveltyArchive(object):
             self.novelty_threshold *= 1.1
 
         return sparseness
+
+class DistrictHistogramNoveltyArchive(NoveltyArchive):
+    def __init__(self, state, n_districts, bins=8, **kwargs):
+        self.bins = bins
+        seeds = [ districts.make_random(state, n_districts) for _ in range(n_seeds) ]
+        self.archive = self._features(seeds)
+        super().__init__(state, n_districts, **kwargs)
+
+    def _dist_feature(self, district):
+        dcenters = np.zeros([ self.n_districts, 2 ])
+        counts = np.zeros(self.n_districts)
+        for ti, di in enumerate(district):
+            counts[di] += 1
+        for ti, di in enumerate(district):
+            dcenters[di] += self.state.tile_centers[ti] / counts[di]
+        distances = []
+        for i, j in combinations(range(self.n_districts), 2):
+            distances.append(math.hypot(*(dcenters[i] - dcenters[j])))
+        return np.histogram(distances, bins=self.bins)[0]
+
+    def _features(self, districts):
+        x = np.stack([ self._dist_feature(d) for d in districts ])
+        return x.tolist()
+
+class MutualTilesNoveltyArchive(NoveltyArchive):
+
+    def __init__(self, state, n_districts, n_seeds=200,
+                 use_MCA=False, use_binary_features=True,
+                 binary_n=2, **kwargs ):
+        self.use_MCA = use_MCA
+        self.use_binary_features = use_binary_features
+        self.binary_n = binary_n # How many pairs to use, multiplier of the number of tiles.
+        if use_MCA:
+            self.dim_reduction = MCA( n_components=10 )
+        else:
+            self.dim_reduction = PCA( n_components=10 )
+
+        seeds = [ districts.make_random(state, n_districts) for _ in range(n_seeds) ]
+
+        if use_binary_features:
+            n = state.n_tiles * self.binary_n
+            self.binary_idxs_a = np.random.randint(0, high=state.n_tiles-1, size=n)
+            self.binary_idxs_b = np.random.randint(0, high=state.n_tiles-1, size=n)
+            seeds = [ self._makeBinaryFeature(f) for f in seeds ]
+
+        self.dim_reduction.fit(np.array(seeds))
+        self.archive = np.array(self.dim_reduction.transform(seeds)).tolist()
+        super().__init__(state, n_districts, **kwargs)
+
+    def _makeBinaryFeature(self, district):
+        """ Convert a district (an integer array) into a binary array where each
+            values corresponds to if a pair of tiles are in the same district.
+        """
+        return district[ self.binary_idxs_a ] == district[ self.binary_idxs_b ]
+
+    def _features(self, districts):
+        if self.use_binary_features:
+            x = np.stack([ self._makeBinaryFeature(d) for d in districts ])
+        else:
+            x = districts
+        x_reduced = np.array(self.dim_reduction.transform(x))
+        return x_reduced
