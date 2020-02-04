@@ -8,6 +8,7 @@ from pymoo.model.mutation import Mutation
 from pymoo.model.crossover import Crossover
 from pymoo.performance_indicator.hv import Hypervolume
 from pymoo.algorithms.nsga2 import NSGA2
+from pymoo.algorithms.nsga3 import NSGA3
 # from pymoo.optimize import minimize
 
 from src import districts, metrics, mutation
@@ -180,7 +181,7 @@ def optimize(config, _state, outdir, save_plots=True):
         mappings.append(mapping)
     states = states[::-1]
     mappings = mappings[::-1]
-    thresholds = np.linspace(*config['threshold_range'], num=len(states))
+    thresholds = np.linspace(*config['equality_range'], num=len(states))
     print('Equality thresholds:', thresholds)
     ############################################################################
     """ Second, Create an initial population that has populaiton equality. """
@@ -232,7 +233,7 @@ def optimize(config, _state, outdir, save_plots=True):
         if opt_i == 0:
             n_gens = config['n_gens_first']
         elif is_last_phase:
-            n_gens = config['n_gens_final']
+            n_gens = config['n_gens_last']
         else:
             n_gens = config['n_gens']
 
@@ -327,7 +328,12 @@ def optimize(config, _state, outdir, save_plots=True):
             #     except Exception as e:
             #         print('!', end='')
             #         pass
-            algorithm = NSGA2(
+            # ref_dirs = np.random(config['pop_size'])
+            from pymoo.factory import get_reference_directions
+            ref_dirs = get_reference_directions("das-dennis", len(hypervolume_mask), n_partitions=12)
+            algorithm = NSGA3(
+                ref_dirs=ref_dirs,
+            # algorithm = NSGA2(
                 pop_size=config['pop_size'],
                 sampling=seeds,
                 crossover=DistrictCross(),
