@@ -92,6 +92,8 @@ class DistrictProblem(Problem):
                 [ f(self.state, d, self.n_districts) !=0 for f in self.used_constraints ]
                 for d in districts
             ])
+        # print(out['G'].mean())
+        # print(out['F'].shape, out['F'].mean(axis=0))
         if self.use_novelty:
             novelty = self.archive.updateAndGetSparseness(districts)
             novelty = 1.0 - ( novelty * 0.5 )
@@ -146,20 +148,19 @@ def log_algorithm(algorithm, text, pbar, HV, hypervolume_mask, use_novelty):
     """ A function passed as the 'callback' genetic algorithm, handles logging. """
     if algorithm.history is None:
         algorithm.history = []
+
     F = algorithm.pop.get("F")
 
     # TODO figure out why this is needed.
-    # print('\n', text, F.shape, hypervolume_mask, use_novelty)
-    if F.shape[1] == sum(hypervolume_mask) + use_novelty:
-        if use_novelty:
-            hv = round(HV.calc(F[:, :-1]), 5)
-        else:
-            hv = round(HV.calc(F), 5)
-        algorithm.history.append(hv)
+    if F.shape[1] == len(hypervolume_mask):
+        hv = round(HV.calc(F[:, hypervolume_mask ]), 5)
+        algorithm.history.append( hv )
         if hasattr(algorithm, 'pop_size_history'):
             algorithm.pop_size_history.append(int(F.shape[0]))
         pbar.update(1)
         pbar.set_description("%s: %s" % (text, hv))
+    else:
+        print(F.shape, hypervolume_mask)
 
 def optimize(config, _state, outdir, save_plots=True):
     ############################################################################
@@ -219,16 +220,27 @@ def optimize(config, _state, outdir, save_plots=True):
 
         used_metrics = []
         used_constraints = [ partial(metrics.equality, threshold=threshold) ]
+        hypervolume_mask = []
 
         for name in config['metrics']:
             if name == 'novelty':
                 pass
-                # elif name == 'equality':
-                # used_metrics.append(partial(metrics.equality, threshold=0))
+            elif name == 'equality':
+                used_metrics.append(partial(metrics.equality, threshold=0))
+                hypervolume_mask.append(False)
             else:
                 used_metrics.append(getattr(metrics, name))
+                hypervolume_mask.append(True)
 
         use_novelty = ('novelty' in config['metrics']) and not is_last_phase
+        # use_novelty = ('novelty' in config['metrics']) and opt_i == 0
+
+        if config['NSGA3']:
+            from pymoo.factory import get_reference_directions
+            ref_dirs = get_reference_directions("das-dennis", len(hypervolume_mask), n_partitions=50)
+            ALG = partial(NSGA3, ref_dirs=ref_dirs)
+        else:
+            ALG = NSGA2
 
         if opt_i == 0:
             n_gens = config['n_gens_first']
@@ -240,7 +252,7 @@ def optimize(config, _state, outdir, save_plots=True):
         if feasibleinfeasible:
             #Add a metric that is the contraints for feasible and objective for infeasible.
             # used_metrics.append(equality_thr)
-            used_metrics.append(partial(metrics.equality, threshold=0))
+            # used_metrics.append(partial(metrics.equality, threshold=0))
 
             # Feasible population seeks to maximize performance objectives.
             feas_mask = ([ True ] * (len(used_metrics)-1)) + [ False ]
@@ -314,53 +326,24 @@ def optimize(config, _state, outdir, save_plots=True):
             print('Final HV %f'%feas_algo.history[-1])
 
         else:
-            hypervolume_mask = [ True ] * len(used_metrics)
             if use_novelty: # has to be last
                 hypervolume_mask.append(False)
             HV = Hypervolume(ref_point=np.array([ 1 ]*sum(hypervolume_mask)))
-            # for seed in seeds:
-            #     try:
-            #         fix_pop_equality(
-            #             state, seed, config['n_districts'],
-            #             tolerance=threshold,
-            #             max_iters=500
-            #         )
-            #     except Exception as e:
-            #         print('!', end='')
-            #         pass
-            # ref_dirs = np.random(config['pop_size'])
-            from pymoo.factory import get_reference_directions
-            ref_dirs = get_reference_directions("das-dennis", len(hypervolume_mask), n_partitions=12)
-            algorithm = NSGA3(
-                ref_dirs=ref_dirs,
-            # algorithm = NSGA2(
+            algorithm = ALG(
                 pop_size=config['pop_size'],
                 sampling=seeds,
                 crossover=DistrictCross(),
                 mutation=DistrictMutation(state, config['n_districts'], threshold),
-                callback=partial(
-                    log_algorithm, text='HV', HV=HV,
-                    pbar=tqdm(total=n_gens),
-                    hypervolume_mask=hypervolume_mask,
-                    use_novelty=use_novelty
-                ),
+                callback=partial(log_algorithm, text='HV', HV=HV,pbar=tqdm(total=n_gens),
+                                 hypervolume_mask=hypervolume_mask,
+                                 use_novelty=use_novelty),
             )
-            problem = DistrictProblem(
-                state,
-                config['n_districts'],
-                n_gens,
-                use_novelty=use_novelty,
-                used_metrics=used_metrics,
-                used_constraints=used_constraints
-            )
-            result = minimize(
-                problem,
-                algorithm,
-                ('n_gen', n_gens),
-                seed=0,
-                verbose=False,
-                save_history=False
-            )
+            problem = DistrictProblem(state, config['n_districts'], n_gens,
+                                      use_novelty=use_novelty,
+                                      used_metrics=used_metrics,
+                                      used_constraints=used_constraints)
+            result = minimize(problem, algorithm,('n_gen', n_gens), seed=0,
+                              verbose=False, save_history=False )
             save_results(outdir, config, state, result, opt_i, algorithm.history)
             if save_plots:
                 import matplotlib.pyplot as plt
