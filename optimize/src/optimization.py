@@ -147,7 +147,13 @@ def log_algorithm(algorithm, text, pbar, HV, hypervolume_mask, use_novelty):
 
     F = algorithm.pop.get("F")
 
-    # TODO figure out why this is needed.
+    # Fix novelty stagnation (the novelty of old solutions).
+    if algorithm.problem.use_novelty:
+        X = algorithm.pop.get('X')
+        novelty = algorithm.problem.archive.getNovelty(X)
+        F[:, -1] = novelty
+        algorithm.pop.set('F', F)
+
     if F.shape[1] == len(hypervolume_mask):
         hv = round(HV.calc(F[:, hypervolume_mask ]), 5)
         algorithm.history.append( hv )

@@ -28,6 +28,11 @@ class NoveltyArchive(object):
     def _features(self, districts):
         raise NotImplementedError()
 
+    def getNovelty(self, districts):
+        features   = self._features(districts)
+        sparseness = self._makeSparseness(features)
+        return sparseness
+
     def updateAndGetSparseness(self, districts):
         features   = self._features(districts)
         sparseness = self._makeSparseness(features)
