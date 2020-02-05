@@ -15,7 +15,8 @@ def bounding_hulls(state, districts, n_districts):
 def compactness_convex_hull(state, districts, n_districts):
     """ Compactness metric: inverse to the sum hull areas. """
     hulls = bounding_hulls(state, districts, n_districts)
-    hulls_area = sum( polygon.area(h) for h in hulls )
+    # print(hulls[0])
+    hulls_area = sum( polygon.area([ h ]) for h in hulls )
     return 1.0 - (state.area / hulls_area)
 
 ################################################################################

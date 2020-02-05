@@ -14,10 +14,10 @@ def _shoelace(vertices):
     return area
 
 def area(polygons):
-    # if type(vertices) == np.ndarray:
-    #     return polygon_x.area(vertices)
-    # else:
-    return sum(abs(_shoelace(p))/2 for p in polygons)
+    if type(polygons[0]) == np.ndarray:
+        return sum(polygon_x.area(p) for p in polygons)
+    else:
+        return sum(abs(_shoelace(p))/2 for p in polygons)
 
 def centroid(polygons):
     xmin, ymin = float('inf'), float('inf')
