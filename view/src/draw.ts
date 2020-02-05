@@ -20,6 +20,7 @@ export function draw_district(
     colors: string[],
     mode: string
 ) {
+    console.time('draw')
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const [ xmin, ymin, xmax, ymax ] = state.bbox
     const scale = Math.min(canvas.width/(xmax-xmin), canvas.height/(ymax-ymin))
@@ -34,9 +35,7 @@ export function draw_district(
         const ratios = state.voters.map(([ v1, v2 ]) => v1/(v1+v2))
         const rmin = Math.min(...ratios.filter(x => !isNaN(x)))
         const rmax = Math.max(...ratios.filter(x => !isNaN(x)))
-        // console.log({rmin, rmax});
         const normed_ratios = ratios.map(r => (r-rmin) / (rmax-rmin))
-        // console.log(normed_ratios);
         tile_colors = normed_ratios.map(v => isNaN(v) ? [0,0,0] : d3.interpolateRdBu(v))
 
     }  else if (mode == 'districts') {
@@ -54,28 +53,22 @@ export function draw_district(
         ctx.lineWidth = 1
         ctx.fillStyle = tile_colors[ti]
         ctx.strokeStyle = 'darkgray'
-        // console.log(state.shapes[ti].length);
         state.shapes[ti].forEach(poly => {
             polygon(ctx, poly.map(pmap))
             ctx.fill()
-            // ctx.stroke()
         })
-
     })
-
 
     state.tile_edges.forEach((tile_edge_data, ti0) => {
         for (let ti1 of Object.keys(tile_edge_data))  {
             const edge_data: TileEdge = tile_edge_data[ti1]
-            // for edge in edge_data['edges']:
-            //         p1, p2 = edge
-            //         pygame.draw.line(screen, (50, 50, 50), pmap(p1), pmap(p2), 1)
             if (ti1 == 'boundry' || district[ti0] != district[ti1]) {
                 ctx.lineWidth = 2
                 ctx.strokeStyle = 'black'
             } else {
                 ctx.lineWidth = 1
                 ctx.strokeStyle = 'gray'
+                continue
             }
             for (const [ p1, p2 ] of edge_data.edges) {
                 ctx.beginPath()
@@ -94,4 +87,5 @@ export function draw_district(
     //     }))
     //     ctx.stroke()
     // })
+    console.timeEnd('draw')
 }

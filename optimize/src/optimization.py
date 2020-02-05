@@ -92,8 +92,6 @@ class DistrictProblem(Problem):
                 [ f(self.state, d, self.n_districts) !=0 for f in self.used_constraints ]
                 for d in districts
             ])
-        # print(out['G'].mean())
-        # print(out['F'].shape, out['F'].mean(axis=0))
         if self.use_novelty:
             novelty = self.archive.updateAndGetSparseness(districts)
             novelty = 1.0 - ( novelty * 0.5 )
@@ -123,8 +121,6 @@ def save_results(outdir, config, state, result, opt_i, hv_history, hv_history2=N
             "config": config,
             'values': result.F.tolist(),
             'solutions': result.X.tolist(),
-            # 'hv_history': hv_history,
-            # 'hv_history2': hv_history2,
             'metrics_data': {
                 'lost_votes': [
                     np.asarray(metrics.lost_votes(state, x, config['n_districts'])).tolist()
@@ -196,12 +192,12 @@ def optimize(config, _state, outdir, save_plots=True):
         while len(seeds) < config['pop_size']:
             try:
                 dists = districts.make_random(state, config['n_districts'])
-                # if not feasibleinfeasible:
-                fix_pop_equality(
-                    state, dists, config['n_districts'],
-                    tolerance=thresholds[0],
-                    max_iters=300
-                )
+                if not config['dont_fix_seeds']:
+                    fix_pop_equality(
+                        state, dists, config['n_districts'],
+                        tolerance=thresholds[0],
+                        max_iters=300
+                    )
                 seeds.append(dists)
                 pbar.update(1)
             except Exception as e:
@@ -218,6 +214,9 @@ def optimize(config, _state, outdir, save_plots=True):
         print(f'\tNum tiles: {state.n_tiles}\n\tThreshold: {threshold}')
         is_last_phase = opt_i == len(states)-1
 
+        def is_compact(state, districts, n_districts):
+            return metrics.polsby_popper(state, districts, n_districts) > 0.8
+
         used_metrics = []
         used_constraints = [ partial(metrics.equality, threshold=threshold) ]
         hypervolume_mask = []
@@ -232,8 +231,9 @@ def optimize(config, _state, outdir, save_plots=True):
                 used_metrics.append(getattr(metrics, name))
                 hypervolume_mask.append(True)
 
-        use_novelty = ('novelty' in config['metrics']) and not is_last_phase
-        # use_novelty = ('novelty' in config['metrics']) and opt_i == 0
+        use_novelty = ('novelty' in config['metrics']) and opt_i <= config['novelty_phases']-1
+        if use_novelty:
+            print('Using novelty')
 
         if config['NSGA3']:
             from pymoo.factory import get_reference_directions

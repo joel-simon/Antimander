@@ -63,8 +63,8 @@ function update_text(div: HTMLElement, data, p_idx: number, colors: string[]) {
 function update_pareto_plot(data, ranges) {
     const { values } = data
     const { n_districts, metrics } = data.config
-    const idx1 = 1
-    const idx2 = 2
+    const idx1 = 0
+    const idx2 = 1
     // const idx1 = +(metrics_a.querySelector('.selected') as HTMLElement).dataset.idx
     // const idx2 = +(metrics_b.querySelector('.selected') as HTMLElement).dataset.idx
     // const filters = [ ]
