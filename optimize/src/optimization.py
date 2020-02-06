@@ -154,15 +154,17 @@ def log_algorithm(algorithm, text, pbar, HV, hypervolume_mask, use_novelty):
         F[:, -1] = novelty
         algorithm.pop.set('F', F)
 
-    if F.shape[1] == len(hypervolume_mask):
-        hv = round(HV.calc(F[:, hypervolume_mask ]), 5)
-        algorithm.history.append( hv )
-        if hasattr(algorithm, 'pop_size_history'):
-            algorithm.pop_size_history.append(int(F.shape[0]))
-        pbar.update(1)
-        pbar.set_description("%s: %s" % (text, hv))
-    else:
-        print(F.shape, hypervolume_mask)
+    if F.shape[1] != len(hypervolume_mask):
+        # This happens only first gen.
+        # print(F.shape, hypervolume_mask)
+        return
+
+    hv = round(HV.calc(F[:, hypervolume_mask ]), 5)
+    algorithm.history.append( hv )
+    if hasattr(algorithm, 'pop_size_history'):
+        algorithm.pop_size_history.append(int(F.shape[0]))
+    pbar.update(1)
+    pbar.set_description("%s: %s" % (text, hv))
 
 def optimize(config, _state, outdir, save_plots=True):
     ############################################################################
@@ -226,6 +228,12 @@ def optimize(config, _state, outdir, save_plots=True):
         used_metrics = []
         used_constraints = [ partial(metrics.equality, threshold=threshold) ]
         hypervolume_mask = []
+        infeas_hv_mask = []
+
+        if config['feasibleinfeasible']:
+            if 'equality' not in config['metrics']:
+                print('Warning: equality metric must be included for feasibleinfeasible search. Added it.')
+                config['metrics'].append('equality')
 
         for name in config['metrics']:
             if name == 'novelty':
@@ -233,13 +241,13 @@ def optimize(config, _state, outdir, save_plots=True):
             elif name == 'equality':
                 used_metrics.append(partial(metrics.equality, threshold=0))
                 hypervolume_mask.append(False)
+                infeas_hv_mask.append(True)
             else:
                 used_metrics.append(getattr(metrics, name))
                 hypervolume_mask.append(True)
+                infeas_hv_mask.append(False)
 
         use_novelty = ('novelty' in config['metrics']) and opt_i <= config['novelty_phases']-1
-        if use_novelty:
-            print('Using novelty')
 
         if config['NSGA3']:
             from pymoo.factory import get_reference_directions
@@ -257,21 +265,14 @@ def optimize(config, _state, outdir, save_plots=True):
 
         if feasibleinfeasible:
             #Add a metric that is the contraints for feasible and objective for infeasible.
-            # used_metrics.append(equality_thr)
-            # used_metrics.append(partial(metrics.equality, threshold=0))
-
-            # Feasible population seeks to maximize performance objectives.
-            feas_mask = ([ True ] * (len(used_metrics)-1)) + [ False ]
-            feas_hv_mask = copy(feas_mask)
+            feas_mask = copy(hypervolume_mask)
+            infeas_mask = copy(infeas_hv_mask)
 
             # Infeasible population seeks to maximize constraint violation.
-            infeas_mask = ([ False ] * (len(used_metrics)-1)) + [ True ]
-            infeas_hv_mask = copy(infeas_mask)
-
             if use_novelty:
                 feas_mask.append(False)
                 infeas_mask.append(True)
-                feas_hv_mask.append(False)
+                hypervolume_mask.append(False)
                 infeas_hv_mask.append(False)
 
             pop_size = config['pop_size']//2
@@ -283,9 +284,9 @@ def optimize(config, _state, outdir, save_plots=True):
                 callback=partial(
                     log_algorithm,
                     text='  Feas HV',
-                    HV=Hypervolume(ref_point=np.ones(sum(feas_hv_mask))),
+                    HV=Hypervolume(ref_point=np.ones(sum(hypervolume_mask))),
                     pbar=tqdm(total=n_gens, position=0),
-                    hypervolume_mask=feas_hv_mask,
+                    hypervolume_mask=np.array(hypervolume_mask)[feas_mask],
                     use_novelty=use_novelty
                 )
             )
@@ -300,7 +301,7 @@ def optimize(config, _state, outdir, save_plots=True):
                     text='InFeas HV',
                     HV=Hypervolume(ref_point=np.ones(sum(infeas_hv_mask))),
                     pbar=tqdm(total=n_gens, position=1),
-                    hypervolume_mask=infeas_hv_mask,
+                    hypervolume_mask=np.array(infeas_hv_mask)[infeas_mask],
                     use_novelty=use_novelty
                 )
             )
@@ -314,7 +315,7 @@ def optimize(config, _state, outdir, save_plots=True):
             save_results(outdir, config, state, result, opt_i, feas_algo.history, infeas_algo.history)
             if save_plots:
                 import matplotlib.pyplot as plt
-                plt.figure()
+                # plt.figure()
                 plt.plot(feas_algo.history, label='Feas Phase: %i'%opt_i)
                 # plt.plot(infeas_algo.history, label='Infeas Phase: %i'%opt_i)
                 plt.xlabel('Generations')
