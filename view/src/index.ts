@@ -1,4 +1,4 @@
-import * as randomColor from 'randomColor'
+// import * as randomColor from 'randomcolor'
 import { make_chart, update_chart } from './pareto_front_chart'
 import { District, State } from './types'
 import { draw_district } from './draw'
@@ -20,8 +20,13 @@ let chart
 canvas_partition.width  = window.innerWidth * 0.5;
 canvas_partition.height = window.innerWidth * 0.5;
 
+const draw_state = {
+    ranges:null,
+    metric_1: 0,
+    metric_2: 1,
+}
 
-function update_text(div: HTMLElement, data, p_idx: number, colors: string[]) {
+function update_text(div: HTMLElement, data, p_idx: number) {
     const { state, solutions, values, metrics_data } = data
     const { n_districts, metrics } = data.config
     const ideal_pop = state.population / n_districts
@@ -52,59 +57,54 @@ function update_text(div: HTMLElement, data, p_idx: number, colors: string[]) {
     const total_lost_p1 = sum(metrics_data.lost_votes[p_idx].map(a => a[0]))
     const total_lost_p2 = sum(metrics_data.lost_votes[p_idx].map(a => a[1]))
     generateTable(table, table_data)
-    table.querySelectorAll('tbody tr').forEach((row:HTMLElement, idx) => {
-        row.style.color = colors[idx]
-    })
+    // table.querySelectorAll('tbody tr').forEach((row:HTMLElement, idx) => {
+    //     row.style.color = colors[idx]
+    // })
     const total = sum(party_1) + sum(party_2)
     const p = document.getElementById('lost_votes_summary')
     p.innerHTML = `Lost votes party 1: ${total_lost_p1} <br> Lost votes party 2: ${total_lost_p2}`
 }
 
-function update_pareto_plot(data, ranges) {
+function update_pareto_plot(data) {
     const { values } = data
     const { n_districts, metrics } = data.config
-    const idx1 = 0
-    const idx2 = 1
+    console.log(draw_state);
     // const idx1 = +(metrics_a.querySelector('.selected') as HTMLElement).dataset.idx
     // const idx2 = +(metrics_b.querySelector('.selected') as HTMLElement).dataset.idx
-    // const filters = [ ]
-    // for (const slider of sliders_container.children) {
-    //     const name = (slider as HTMLElement).dataset.name
-    //     const value = parseFloat(slider.querySelector('input').value) / 100
-    //     filters.push(value)
-    // }
-    update_chart(chart, values, metrics, idx1, idx2, ranges)
+    update_chart(chart, values, metrics, draw_state.metric_1, draw_state.metric_2, draw_state.ranges)
 }
 
-// function draw_ui(data) {
-//     const { state, solutions, values } = data
-//     const { n_districts, metrics } = data.config
-//     metrics.forEach((metric:string, idx) => {
-//         const option_a:HTMLButtonElement = document.createElement('button')
-//         option_a.innerHTML = metric
-//         option_a.dataset.idx = idx
-//         const option_b = option_a.cloneNode(true) as HTMLButtonElement
-//         metrics_a.append(option_a)
-//         metrics_b.append(option_b)
-//         option_a.onclick = () => {
-//             metrics_a.querySelector('.selected').classList.remove('selected')
-//             option_a.classList.add('selected')
-//             update_pareto_plot(data)
-//         }
-//         option_b.onclick = () => {
-//             metrics_b.querySelector('.selected').classList.remove('selected')
-//             option_b.classList.add('selected')
-//             update_pareto_plot(data)
-//         }
-//         const slider:HTMLElement = makeSlider(metric)
-//         sliders_container.append(slider)
-//         slider.querySelector('input').oninput = () => {
-//             update_pareto_plot(data)
-//         }
-//     })
-//     metrics_a.children[0].classList.add('selected')
-//     metrics_b.children[1].classList.add('selected')
-// }
+function draw_ui(data) {
+    const { state, solutions, values } = data
+    const { n_districts, metrics } = data.config
+    metrics.forEach((metric:string, idx) => {
+        const option_a:HTMLButtonElement = document.createElement('button')
+        option_a.innerHTML = metric
+        option_a.dataset.idx = idx
+        const option_b = option_a.cloneNode(true) as HTMLButtonElement
+        metrics_a.append(option_a)
+        metrics_b.append(option_b)
+        option_a.onclick = () => {
+            draw_state.metric_1 = idx
+            metrics_a.querySelector('.selected').classList.remove('selected')
+            option_a.classList.add('selected')
+            update_pareto_plot(data)
+        }
+        option_b.onclick = () => {
+            draw_state.metric_2 = idx
+            metrics_b.querySelector('.selected').classList.remove('selected')
+            option_b.classList.add('selected')
+            update_pareto_plot(data)
+        }
+        // const slider:HTMLElement = makeSlider(metric)
+        // sliders_container.append(slider)
+        // slider.querySelector('input').oninput = () => {
+        //     update_pareto_plot(data)
+        // }
+    })
+    metrics_a.children[0].classList.add('selected')
+    metrics_b.children[1].classList.add('selected')
+}
 
 function create_parcoords(data, on_change) {
     const parcoords = d3.parcoords({
@@ -155,7 +155,9 @@ if (!urlParams.has('run') || !urlParams.has('stage')) {
         const { solutions, values, metrics_data } = data
         data.state = state
         const { n_districts, metrics } = data.config
-        const colors: string[] = Array(n_districts).fill(0).map(randomColor)
+        // const colors: string[] = Array(n_districts).fill(0).map(randomColor)
+
+        draw_state.ranges = Array(metrics.length).fill(0).map(() => [0, 1])
 
         function update() {
             draw_district(
@@ -163,11 +165,11 @@ if (!urlParams.has('run') || !urlParams.has('stage')) {
                 ctx_partition,
                 state,
                 solutions[district_idx],
+                n_districts,
                 metrics_data.bounding_hulls[district_idx],
-                colors,
                 mode
             )
-            update_text(div_text, data, district_idx, colors)
+            update_text(div_text, data, district_idx)
         }
 
         const chart_config = {
@@ -176,10 +178,13 @@ if (!urlParams.has('run') || !urlParams.has('stage')) {
                 update()
             }
         }
+
+        draw_ui(data)
         chart = make_chart(chart_config, ctx_pf, values, 1, 0, metrics )
 
         create_parcoords(data, ranges => {
-            update_pareto_plot(data, ranges)
+            draw_state.ranges = ranges
+            update_pareto_plot(data)
         })
 
         partition_draw_mode.onchange = (event: Event) => {

@@ -1,6 +1,10 @@
 import { District, State, TileEdge } from './types'
 declare var d3: any;
 
+const BLUE = d3.color('rgba(4, 26, 232, 1.0)')
+const PURPLE = d3.color('rgba(132, 31, 245, 1.0)')
+const RED = d3.color('rgba( 188, 0, 26, 1.0)')
+
 function polygon(ctx, points: number[][]) {
     ctx.beginPath()
     ctx.moveTo(points[0][0], points[0][1])
@@ -11,13 +15,19 @@ function polygon(ctx, points: number[][]) {
     ctx.closePath()
 }
 
+function norm(array) {
+    const min = Math.min(...array.filter(x => !isNaN(x)))
+    const max = Math.max(...array.filter(x => !isNaN(x)))
+    return array.map(x => (x-min) / (max-min))
+}
+
 export function draw_district(
     canvas: HTMLCanvasElement,
     ctx: any,
     state: State,
     district: District,
+    n_districts: number,
     bounding_hulls: number[][][],
-    colors: string[],
     mode: string
 ) {
     console.time('draw')
@@ -33,14 +43,27 @@ export function draw_district(
     if (mode == 'voters') {
         // Colors are the normalized voter ratios.
         const ratios = state.voters.map(([ v1, v2 ]) => v1/(v1+v2))
-        const rmin = Math.min(...ratios.filter(x => !isNaN(x)))
-        const rmax = Math.max(...ratios.filter(x => !isNaN(x)))
-        const normed_ratios = ratios.map(r => (r-rmin) / (rmax-rmin))
-        tile_colors = normed_ratios.map(v => isNaN(v) ? [0,0,0] : d3.interpolateRdBu(v))
+        tile_colors = norm(ratios).map(v => isNaN(v) ? [0,0,0] : d3.interpolateRdBu(v))
 
     }  else if (mode == 'districts') {
+        // const color_fn = d3.scale.linear().domain([ 0, 0.5, 1.0 ])
+        //         .interpolate(d3.interpolateHcl)
+        //         .range([ BLUE, PURPLE, RED ])
+        const color_fn = d3.interpolateRdBu
+
+        const party_1 = new Array(n_districts).fill(0)
+        const party_2 = new Array(n_districts).fill(0)
+        district.forEach((di:number, tile_idx:number) => {
+            party_1[di] += state.voters[tile_idx][0]
+            party_2[di] += state.voters[tile_idx][1]
+        })
+        const ratios = party_1.map((v, idx) => (v-party_2[idx]) / (v+party_2[idx]))
+        // const dist_colors = norm(ratios).map(v => color_fn(v))
+        const dist_colors = ratios.map(v => color_fn(3*v+ 0.5))
         const n_tiles = state.shapes.length
-        tile_colors = Array(n_tiles).fill(0).map((_, tid) => colors[district[tid]])
+        tile_colors = Array(n_tiles).fill(0).map((_, tid) => dist_colors[district[tid]])
+        // tile_colors = .map((_, tid) => colors[district[tid]])
+
     } else {
         // Colors are the normalized voter ratios.
         const pmin = Math.min(...state.populations)
@@ -50,21 +73,26 @@ export function draw_district(
     }
 
     district.forEach((di:number, ti:number) => {
-        ctx.lineWidth = 1
+        ctx.lineWidth = 2
         ctx.fillStyle = tile_colors[ti]
-        ctx.strokeStyle = 'darkgray'
+        ctx.strokeStyle = tile_colors[ti]
+        // ctx.strokeStyle = 'darkgray'
         state.shapes[ti].forEach(poly => {
             polygon(ctx, poly.map(pmap))
             ctx.fill()
+            ctx.stroke()
         })
     })
 
     state.tile_edges.forEach((tile_edge_data, ti0) => {
         for (let ti1 of Object.keys(tile_edge_data))  {
             const edge_data: TileEdge = tile_edge_data[ti1]
+            if (ti1 == 'boundry') {
+                continue
+            }
             if (ti1 == 'boundry' || district[ti0] != district[ti1]) {
                 ctx.lineWidth = 2
-                ctx.strokeStyle = 'black'
+                ctx.strokeStyle = 'white'
             } else {
                 ctx.lineWidth = 1
                 ctx.strokeStyle = 'gray'
