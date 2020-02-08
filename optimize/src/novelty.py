@@ -5,7 +5,7 @@ from prince import MCA
 from sklearn.decomposition import PCA
 from pykdtree.kdtree import KDTree
 from src import districts
-
+from src.novelty_utils import histogram_features
 class NoveltyArchive(object):
     def __init__(self, state, n_districts, novelty_threshold=1.5,
                 archive_stagnation=3,ns_K=10):
@@ -57,27 +57,30 @@ class NoveltyArchive(object):
         return sparseness
 
 class DistrictHistogramNoveltyArchive(NoveltyArchive):
-    def __init__(self, state, n_districts, bins=8, **kwargs):
+    def __init__(self, state, n_districts, bins=8, n_seeds=200, **kwargs):
         self.bins = bins
+        super().__init__(state, n_districts, **kwargs)
+        # self.n_districts = n_districts
         seeds = [ districts.make_random(state, n_districts) for _ in range(n_seeds) ]
         self.archive = self._features(seeds)
-        super().__init__(state, n_districts, **kwargs)
 
-    def _dist_feature(self, district):
-        dcenters = np.zeros([ self.n_districts, 2 ])
-        counts = np.zeros(self.n_districts)
-        for ti, di in enumerate(district):
-            counts[di] += 1
-        for ti, di in enumerate(district):
-            dcenters[di] += self.state.tile_centers[ti] / counts[di]
-        distances = []
-        for i, j in combinations(range(self.n_districts), 2):
-            distances.append(math.hypot(*(dcenters[i] - dcenters[j])))
-        return np.histogram(distances, bins=self.bins)[0]
+
+    # def _dist_feature(self, district):
+    #     dcenters = np.zeros([ self.n_districts, 2 ])
+    #     counts = np.zeros(self.n_districts)
+    #     for ti, di in enumerate(district):
+    #         counts[di] += 1
+    #     for ti, di in enumerate(district):
+    #         dcenters[di] += self.state.tile_centers[ti] / counts[di]
+    #     distances = []
+    #     for i, j in combinations(range(self.n_districts), 2):
+    #         distances.append(math.hypot(*(dcenters[i] - dcenters[j])))
+    #     return np.histogram(distances, bins=self.bins)[0]
 
     def _features(self, districts):
-        x = np.stack([ self._dist_feature(d) for d in districts ])
-        return x.tolist()
+        return histogram_features(np.array(districts, dtype='i'), self.n_districts, self.bins, np.array(self.state.tile_centers, dtype='f'))
+        # x = np.stack([ self._dist_feature(d) for d in districts ])
+        # return x.tolist()
 
 class MutualTilesNoveltyArchive(NoveltyArchive):
 

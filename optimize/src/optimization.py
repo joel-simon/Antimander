@@ -14,8 +14,8 @@ from pymoo.algorithms.nsga3 import NSGA3
 from src import districts, metrics, mutation
 from src.state import State
 from src.constraints import fix_pop_equality
-# from src.novelty import DistrictHistogramNoveltyArchive as NoveltyArchive
-from src.novelty import MutualTilesNoveltyArchive as NoveltyArchive
+from src.novelty import DistrictHistogramNoveltyArchive as NoveltyArchive
+# from src.novelty import MutualTilesNoveltyArchive as NoveltyArchive
 from src.feasibleinfeasible import *
 
 def minimize(problem, algorithm,termination=None,**kwargs):
