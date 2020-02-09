@@ -68,6 +68,8 @@ def parse(sf):
             records[j]['PREREP12'] += records[i]['PREREP12']
             records[j]['PERSONS'] += records[i]['PERSONS']
             multipolygons[j] = [ p for p in multipolygons[j] if poly2set(p) not in verts_i ]
+            assert records[j]['CON'] == records[i]['CON']
+
     for index in sorted(to_remove, reverse=True):
         del records[index]
         del centers[index]
@@ -94,6 +96,8 @@ def parse(sf):
             d += 1
     N -= len(to_remove)
     new_record = defaultdict(lambda: 0)
+    new_record['CON'] = records[to_remove[0]]['CON']
+    assert all(new_record['CON'] == records[idx]['CON'] for idx in to_remove)
     new_polygons = []
     new_center = []
     for index in sorted(to_remove, reverse=True):
@@ -132,12 +136,12 @@ def parse(sf):
     ############################################################################
     return multipolygons, records, neighbors, boundry_tracts, centers
 
-def WI():
-    # sf = shapefile.Reader('/Users/joelsimon/Data/gerrymandering/WI_wards_12_16/WI_ltsb_corrected_final.shp')
-    sf = shapefile.Reader('/Users/joelsimon/Downloads/output/WI_Wards_12_16.shp')
+def WI(shape_path):
+    sf = shapefile.Reader(shape_path)
     multipolygons, records, neighbors, boundry_tracts, centers = parse(sf)
     democrats   = [ (r['PREDEM16'] + r['PREDEM12'])//2 for r in records ]
     republicans = [ (r['PREREP16'] + r['PREREP12'])//2 for r in records ]
+    real_districts = [ r['CON'] for r in records ]
     state = {
         'shapes' : multipolygons,
         'neighbors' : [ list(v) for v in neighbors ],
@@ -146,7 +150,8 @@ def WI():
         'population': sum([ r['PERSONS'] for r in records ]),
         'voters': list(zip(democrats, republicans)),
         'bbox': list(sf.bbox),
-        'centers': centers
+        'centers': centers,
+        'real_districts': real_districts
     }
     return state
 
@@ -168,12 +173,13 @@ def WI():
 
 
 plot = True
-plot_neighbors = True
+plot_neighbors = False
 save = True
 state_name = 'WI'
+shape_path = sys.argv[1]
 # state_name = 'NC'
 
-state = WI() if state_name == 'WI' else NC()
+state = WI(shape_path) if state_name == 'WI' else NC()
 
 if save:
     with open('data/%s.json'%state_name, 'w') as fout:
@@ -183,7 +189,8 @@ if plot:
     colors = []
     patches = []
     for i, multipolygon in enumerate(state['shapes']):
-        color = 100*np.random.rand()
+        # color = 100*np.random.rand()
+        color = state['real_districts'][i] * 10
         for polygon in multipolygon:
             patches.append(Polygon(polygon, True))
             colors.append(color)
