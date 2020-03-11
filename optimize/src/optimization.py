@@ -94,7 +94,7 @@ class DistrictProblem(Problem):
             ])
         if self.use_novelty:
             novelty = self.archive.updateAndGetSparseness(districts)
-            novelty = 1.0 - ( novelty * 0.5 )
+            novelty = 1.0 - ( novelty * 0.05 )
             np.clip(novelty, 0, 1, out=novelty)
             out['F'] = np.append( out['F'], novelty[:, np.newaxis], axis=1 )
         assert not np.isnan(out['F']).any()
