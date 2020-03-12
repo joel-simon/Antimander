@@ -211,55 +211,56 @@ class State:
         return state, mapping
 
     @classmethod
-    def makeRandom(cls, n_tiles=100, n_parties=2, seed=None, n_cities=3):
+    def makeRandom(
+        cls, n_tiles=100, n_parties=2, seed=None, n_cities=3,
+        total_pop=1e6,
+        city_strength=.1, # How big are cities in terms of percent of total pop.
+        voter_turnout=0.7, # Arbitrary.
+        smooth_steps=6
+    ):
         from src.utils.voronoi import smoothedRandomVoronoi
         if seed is not None:
             random.seed(seed)
             np.random.seed(seed)
         cells = smoothedRandomVoronoi(n_tiles=n_tiles, steps=5, seed=seed)
         boundry_tiles = [ any( e['adjacent_cell'] < 0 for e in c['faces']) for c in cells ]
-
         tile_boundaries = np.zeros(n_tiles, dtype='uint8')
         tile_boundaries[ boundry_tiles ] = 1
         tile_neighbors = [[ e['adjacent_cell'] for e in c['faces']
                             if e['adjacent_cell'] >= 0] for c in cells ]
-
-        tile_populations = np.random.randint(100, 500, size=n_tiles, dtype='int32')
-        voter_turnout = 0.7 # Arbitrary.
-
+ 
         noise = np.random.uniform(low=0.2, high=0.8, size=(n_tiles,))
-        tile_voters = np.array([
-            (voter_turnout * 0.3 * 0.5 * noise * tile_populations),
-            (voter_turnout * 0.7 * 0.5 * (1-noise) * tile_populations)
-        ]).astype('int32').T
+        tile_voters = np.array([ noise, 1-noise ]).T
 
         # Assumes cities skew to one party.
         for ti in random.sample(list(range(n_tiles)), n_cities):
-            tile_populations[ti] = 45000 / n_cities
-            tile_voters[ti, 0] = (voter_turnout * 0.8 * tile_populations[ti])
-            tile_voters[ti, 1] = (voter_turnout * 0.2 * tile_populations[ti])
+            tile_voters[ti, 0] = n_tiles * city_strength / n_cities
 
         # Smooth.
-        for _ in range(6):
+        for _ in range(smooth_steps):
             _tile_voters = np.zeros_like(tile_voters)
-            _tile_populations = np.zeros_like(tile_populations)
             for ti in range(n_tiles):
                 nn = len(tile_neighbors[ti])
                 _tile_voters[ti, 0] = sum(tile_voters[ti_o, 0] for ti_o in tile_neighbors[ti]) / nn
                 _tile_voters[ti, 1] = sum(tile_voters[ti_o, 1] for ti_o in tile_neighbors[ti]) / nn
-                _tile_populations[ti] = sum(tile_populations[ti_o] for ti_o in tile_neighbors[ti]) / nn
             tile_voters = 0.5 * (_tile_voters + tile_voters)
-            tile_populations = 0.5 * (_tile_populations + tile_populations)
-
+        
         # Ensure same number of each party.
-        # tile_voters[:, 0] *= 50000 / tile_voters[:, 0].sum()
-        # tile_voters[:, 1] *= 50000 / tile_voters[:, 1].sum()
+        tile_voters[:, 0] *= 1 / tile_voters[:, 0].sum()
+        tile_voters[:, 1] *= 1 / tile_voters[:, 1].sum()
 
+        tile_populations = tile_voters.sum(axis=1) / voter_turnout
+        scale = total_pop / tile_populations.sum()
+        tile_populations = (scale * tile_populations).astype('i')
+        tile_voters = (scale * tile_voters).astype('i')
+        
         for ti in range(n_tiles):
             assert tile_voters[ti].sum() < tile_populations[ti]
 
         print('p1', tile_voters[:, 0].sum())
         print('p2', tile_voters[:, 1].sum())
+        print('total_voters', tile_voters.sum())
+        print('total_pop', tile_populations.sum())
 
         tile_data = {
             'shapes': [ [[ (int(x*1000), int(y*1000)) for x,y in c['vertices']]] for c in cells ],
