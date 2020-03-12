@@ -59,16 +59,10 @@ def draw_districts(
     vote_percentages = normalize(state.tile_voters[:, 0] / total_voters)
     populations = normalize(state.tile_populations)
 
-
-    # else:
-    #     def get_color(p)
-
     for ti in range(state.n_tiles):
         district = districts[ti]
         color = colors[district]
 
-        # if state.tile_boundaries[ti]:
-        #     color = (0,0,0)
         # value = vote_percentages[ti]
         # if np.isnan(value):
         #     color = (0,0,0)

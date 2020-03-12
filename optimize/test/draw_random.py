@@ -12,10 +12,12 @@ from src.draw import draw_districts
 
 # state = State.fromFile('data/t500-c3.json')
 state = State.makeRandom(400, seed=1)
+for _ in range(1):
+    state, _ = state.contract(seed=0)
 
 # met = metrics.compactness_convex_hull
 met = metrics.polsby_popper
-mutate = True
+mutate = False
 n_districts = 5
 
 districts = districts.make_random(state, n_districts)

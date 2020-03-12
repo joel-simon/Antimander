@@ -60,19 +60,17 @@ class State:
         for ti, polygons in enumerate(self.tile_vertices):
             for poly in polygons:
                 for vert in poly:
-                    v2ti[ vert ].add(ti)
-                    v2poly[ vert ] += 1
+                    v2ti[vert].add(ti)
+                    v2poly[vert] += 1
 
         for ti, polygons in enumerate(self.tile_vertices):
             for poly in polygons:
                 for vi, vert_a in enumerate(poly):
-                    vert_b = poly[ (vi+1) % len(poly) ]
+                    vert_b = poly[(vi+1) % len(poly)]
                     edge = (vert_a, vert_b)
                     length = math.hypot(vert_a[0] - vert_b[0], vert_a[1] - vert_b[1])
                     other_tiles = v2ti[ vert_a ].intersection(v2ti[vert_b])
-                    boundry_edge = len(other_tiles) == 1
-                    if boundry_edge:
-                        # if len(other_tiles) == 1 and :# Is a boundry tile
+                    if len(other_tiles) == 1 and other_tiles.pop() != ti: # Is boundary edge.
                         self.tile_edges[ ti ][ 'boundry' ][ 'length' ] += length
                         self.tile_edges[ ti ][ 'boundry' ][ 'edges' ].append(( vert_a, vert_b ))
                     else:
