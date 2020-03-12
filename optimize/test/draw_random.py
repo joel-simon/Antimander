@@ -10,25 +10,23 @@ from src.constraints import fix_pop_equality
 from src.draw import draw_districts
 
 
-state = State.fromFile('data/WI.json')
-# state = State.makeRandom(300, seed=1)
-# for _ in range(1):
-#     state, _ = state.contract(seed=0)
-#     print(state.n_tiles)
+# state = State.fromFile('data/t500-c3.json')
+state = State.makeRandom(400, seed=1)
 
 # met = metrics.compactness_convex_hull
 met = metrics.polsby_popper
-mutate = False
-n_districts = 50
-# districts = districts.make_random(state, n_districts)
-districts = np.random.randint(0, n_districts, (state.n_tiles,), dtype='i')
+mutate = True
+n_districts = 5
+
+districts = districts.make_random(state, n_districts)
+# districts = np.random.randint(0, n_districts, (state.n_tiles,), dtype='i')
 tolerance = 0.5
 draw_kwargs = {
     "draw_bounding_hulls": False,
     "draw_bounding_circles": False,
-    "draw_district_edges": False,
+    "draw_district_edges": True,
     "draw_vertices": False,
-    "draw_neigbors_lines": True
+    "draw_neigbors_lines": False
 }
 
 # print(fix_pop_equality(state, districts, n_districts, tolerance=tolerance, max_iters=1000))
@@ -38,10 +36,10 @@ screen = pygame.display.set_mode((w, h))
 screen.fill((255, 255, 255))
 colors = np.random.randint(0, 255, (n_districts, 3))
 
-
 draw_districts(state, districts, n_districts, screen, colors, **draw_kwargs)
 pygame.display.update()
 step = 0
+
 while True:
     if mutate:
         d2 = districts.copy()
@@ -61,8 +59,8 @@ while True:
             draw_districts(state, districts, n_districts, screen, colors, **draw_kwargs)
             pygame.display.update()
         else:
-            # pass
-            print('.', end = '')
+            pass
+            # print('.', end = '')
 
         step += 1
 

@@ -50,8 +50,8 @@ def draw_districts(
 ):
     w, h = screen.get_width(), screen.get_height()
     xmin, ymin, xmax, ymax = state.bbox
-    scale = min(w/(xmax-xmin), h/(ymax-ymin))
-    pmap = lambda p:(int((p[0]-xmin)*scale)+dx, h-int((p[1]-ymin)*scale)+dy)
+    scale = min((w-4)/(xmax-xmin), (h-4)/(ymax-ymin))
+    pmap = lambda p:(2 + int((p[0]-xmin)*scale)+dx, -2 + h-int((p[1]-ymin)*scale)+dy)
 
     # print( state.tile_voters.sum(axis=1).min() )
 
@@ -67,6 +67,8 @@ def draw_districts(
         district = districts[ti]
         color = colors[district]
 
+        # if state.tile_boundaries[ti]:
+        #     color = (0,0,0)
         # value = vote_percentages[ti]
         # if np.isnan(value):
         #     color = (0,0,0)
@@ -78,6 +80,8 @@ def draw_districts(
             vertices = [ pmap(p) for p in poly ]
             gfxdraw.filled_polygon(screen, vertices, color )
             # pygame.draw.polygon(screen, (50, 50, 50), vertices, 1)
+
+
 
     if draw_vertices:
         vert_to_di = defaultdict(set)

@@ -70,8 +70,7 @@ class State:
                     edge = (vert_a, vert_b)
                     length = math.hypot(vert_a[0] - vert_b[0], vert_a[1] - vert_b[1])
                     other_tiles = v2ti[ vert_a ].intersection(v2ti[vert_b])
-
-                    boundry_edge = (v2poly[ vert_a ] == 1) or (v2poly[ vert_b ] == 1)
+                    boundry_edge = len(other_tiles) == 1
                     if boundry_edge:
                         # if len(other_tiles) == 1 and :# Is a boundry tile
                         self.tile_edges[ ti ][ 'boundry' ][ 'length' ] += length
