@@ -15,6 +15,23 @@ def normalize(a):
     nn = a[~np.isnan(a)]
     return (a - np.min(nn)) / np.ptp(nn)
 
+def draw_state( state, screen ):
+    import matplotlib.pyplot as plt
+    w, h = screen.get_width(), screen.get_height()
+    xmin, ymin, xmax, ymax = state.bbox
+    scale = min(w/(xmax-xmin), h/(ymax-ymin))
+    pmap = lambda p:(int((p[0]-xmin)*scale), h-int((p[1]-ymin)*scale))
+    cmap = plt.get_cmap('RdBu')
+    total_voters = state.tile_voters.sum(axis=1)
+    vote_percentages = normalize(state.tile_voters[:, 0] / total_voters)
+    
+    for ti in range(state.n_tiles):
+        p = vote_percentages[ti]
+        color = [ round(255*x) for x in cmap(p) ]
+        for poly in state.tile_vertices[ti]:
+            vertices = [ pmap(p) for p in poly ]
+            gfxdraw.filled_polygon(screen, vertices, color)
+
 def draw_districts(
     state,
     districts,
@@ -30,7 +47,6 @@ def draw_districts(
     draw_bounding_circles=False,
     draw_bounding_hulls=False,
     draw_district_edges=False,
-    # draw_populations=False
 ):
     w, h = screen.get_width(), screen.get_height()
     xmin, ymin, xmax, ymax = state.bbox
@@ -43,11 +59,9 @@ def draw_districts(
     vote_percentages = normalize(state.tile_voters[:, 0] / total_voters)
     populations = normalize(state.tile_populations)
 
-    # if draw_populations:
-    #     import matplotlib.pyplot as plt
-    #     cmap = plt.get_cmap('RdBu')
-    #     def get_color(p):
-    #         return [ round(255*x) for x in cmap(p) ]
+
+    # else:
+    #     def get_color(p)
 
     for ti in range(state.n_tiles):
         district = districts[ti]

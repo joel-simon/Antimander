@@ -11,6 +11,7 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--out', required=True)
     parser.add_argument('-s', '--seed', required=False, default=1, type=int)
     parser.add_argument('-c', '--n_cities', required=False, default=0, type=int)
+    parser.add_argument('--view', action='store_true')
     args = parser.parse_args()
     state = State.makeRandom(
         n_parties=2,
@@ -20,3 +21,14 @@ if __name__ == '__main__':
     )
     with open(os.path.join(args.out), 'w') as f:
         json.dump(state.toJSON(), f)
+
+    if args.view:
+        import pygame
+        import numpy as np
+        from src.draw import draw_state, wait_loop
+        pygame.init()
+        screen = pygame.display.set_mode(( 800, 800 ))
+        screen.fill(( 255, 255, 255 ))
+        draw_state( state, screen )
+        pygame.display.update()
+        wait_loop()
