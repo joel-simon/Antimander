@@ -56,12 +56,16 @@ class State:
         ]
 
         v2ti = defaultdict(set) # Vert to its tile indexes.
-        v2poly = Counter()
+        v2poly = defaultdict(set)
         for ti, polygons in enumerate(self.tile_vertices):
-            for poly in polygons:
+            for pi, poly in enumerate(polygons):
                 for vert in poly:
                     v2ti[vert].add(ti)
+<<<<<<< HEAD
                     v2poly[vert] += 1
+=======
+                    v2poly[vert].add(f'{ti}:{pi}') # Polygon id is string.
+>>>>>>> fix tile edges for subdivied states
 
         for ti, polygons in enumerate(self.tile_vertices):
             for poly in polygons:
@@ -69,12 +73,18 @@ class State:
                     vert_b = poly[(vi+1) % len(poly)]
                     edge = (vert_a, vert_b)
                     length = math.hypot(vert_a[0] - vert_b[0], vert_a[1] - vert_b[1])
+<<<<<<< HEAD
                     other_tiles = v2ti[ vert_a ].intersection(v2ti[vert_b])
                     if len(other_tiles) == 1 and other_tiles.pop() != ti: # Is boundary edge.
+=======
+                    edge_tiles = v2ti[vert_a].intersection(v2ti[vert_b])
+                    edge_polys = v2poly[vert_a].intersection(v2poly[vert_b])
+                    if len(edge_polys) == 1: # Is boundary edge if borders one polygon.
+>>>>>>> fix tile edges for subdivied states
                         self.tile_edges[ ti ][ 'boundry' ][ 'length' ] += length
                         self.tile_edges[ ti ][ 'boundry' ][ 'edges' ].append(( vert_a, vert_b ))
                     else:
-                        for ti_other in other_tiles:
+                        for ti_other in edge_tiles:
                             if ti_other != ti:
                                 self.tile_edges[ ti ][ ti_other ][ 'length' ] += length
                                 self.tile_edges[ ti ][ ti_other ][ 'edges' ].append(( vert_a, vert_b ))
