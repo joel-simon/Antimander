@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
-import sys, os, json, argparse, random
+import sys, os, argparse, random
 import numpy as np
 sys.path.append(os.path.abspath('.'))
-
-from src.state import State
 from src.optimization import optimize
 
 if __name__ == '__main__':
@@ -11,7 +9,10 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--state', required=True, type=str, help='Path to a state file.')
     parser.add_argument('-o', '--out', required=True)
     parser.add_argument('-s', '--seed', required=False, type=int, default=1)
-    parser.add_argument('-fif', '--feasibleinfeasible', action='store_true')
+    parser.add_argument('-fi', '--feasinfeas', action='store_true', 
+                        help='Do 2 pop optimziation. If novelty metric is present will do novelty in infeas pop.')
+    parser.add_argument('-fi2N', '--feasinfeas_2N', action='store_true',
+                        help='Do 2 pop optimziation. Will use do novelty in both populations. Automatically sets --novelty true.')
     parser.add_argument('-mst', '--max_start_tiles', type=int, default=500, required=False)
     parser.add_argument('-d', '--n_districts', type=int, default=8, required=False)
     parser.add_argument('-g', '--n_gens', type=int, default=500, required=False)
@@ -19,23 +20,9 @@ if __name__ == '__main__':
     parser.add_argument('-gl', '--n_gens_last', type=int, default=None, required=False)
     parser.add_argument('-p', '--pop_size', type=int, default=600, required=False)
     parser.add_argument('-m', '--metrics', nargs='+', required=True)
-    parser.add_argument('-e', '--equality_range', nargs=2, default=[.05, .05], type=float)
+    parser.add_argument('-e', '--equality_constraint', default=.05, type=float)
+    parser.add_argument('--novelty', action='store_true', help='Use novelty search.')
     parser.add_argument('--NSGA3', action='store_true')
     parser.add_argument('--dont_fix_seeds', action='store_true')
-    parser.add_argument('--novelty_phases', type=int, default=1)
-
     args = parser.parse_args()
-
-    if args.n_gens_first is None:
-        args.n_gens_first = args.n_gens
-    if args.n_gens_last is None:
-        args.n_gens_last = args.n_gens
-
-    config = vars(args)
-
-    state = State.fromFile(args.state)
-    state = state.mergeIslands()[0]
-    random.seed(args.seed)
-    np.random.seed(args.seed)
-    optimize(config, state, args.out)
-    print('-'*80)
+    optimize(args)

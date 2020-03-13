@@ -9,7 +9,6 @@ import numpy as np
 cimport numpy as np
 from scipy.spatial import ConvexHull
 from src.districts cimport district_voters, district_populations
-# from src.state cimport State
 
 ################################################################################
 # Equality
@@ -57,9 +56,7 @@ cpdef float compactness(state, int[:] districts, int n_districts) except *:
     return np.mean(distances) / max( state.bbox[2]-state.bbox[0], state.bbox[3]-state.bbox[1] )
 
 cdef inline float udist(float[:] a, float[:] b):
-    """ Euclidian distance between two vectors.
-        Faster than numpy.linalg.norm.
-    """
+    """ Euclidian distance between 2 2D vectors. Faster than np.linalg.norm. """
     cdef float x = a[0] - b[0]
     cdef float y = a[1] - b[1]
     return sqrt(x*x + y*y)

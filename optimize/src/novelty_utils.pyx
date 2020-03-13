@@ -5,8 +5,14 @@
 # cython: cdivision=True
 from libc.math cimport sqrt, fabs, fmax
 import math
+import random
 import numpy as np
 cimport numpy as np
+from libc.stdlib cimport rand, RAND_MAX
+
+cdef int rand_int(int min, int max):
+    """ Fast cython randint """
+    return int(min + (rand()/float(RAND_MAX)) * (max - min))
 
 cdef inline float udist(float[:] a, float[:] b):
     """ Euclidian distance between two 2D vectors. Faster than np.linalg.norm. """
@@ -42,6 +48,36 @@ cpdef list histogram_features(int[:,:] districts, int n_districts, int bins, flo
                 distances.append(udist(dcenters[ti], dcenters[tj]))
 
         # result[i, :] = np.array(np.histogram(distances, bins=bins)[0], dtype='i')
+        print(distances)
         result.append(np.histogram(distances, bins=bins)[0])
 
+    return result
+
+cpdef list histogram_features2(
+    int[:, :] districts, int n_districts, int bins,
+    float[:,:] tile_centers,
+    list tile_neighbors
+):
+    """ Histogram of distances between tiles within the same district. """
+    cdef int i, j, ti, di, tj, n, n_edge_tiles
+    cdef list district_tis
+    cdef list result = []
+    cdef int n_tiles = districts.shape[1]
+    n = 5000
+    cdef float[:] values = np.zeros(n, dtype='f')
+    for i in range(districts.shape[0]):
+        edge_tiles = []
+        values[:] = 0.0
+        for ti in range(n_tiles):
+            di = districts[i, ti]
+            for tj in tile_neighbors[ti]:
+                if di != districts[i, tj]:
+                    edge_tiles.append(ti)
+                    break
+        n_edge_tiles = len(edge_tiles)
+        for j in range(n):
+            ti = rand() % n_edge_tiles
+            tj = rand() % n_edge_tiles
+            values[j] = udist(tile_centers[ti], tile_centers[tj])
+        result.append(np.histogram(values, bins=bins, density=True)[0])
     return result

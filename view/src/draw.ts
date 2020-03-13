@@ -87,16 +87,16 @@ export function draw_district(
     state.tile_edges.forEach((tile_edge_data, ti0) => {
         for (let ti1 of Object.keys(tile_edge_data))  {
             const edge_data: TileEdge = tile_edge_data[ti1]
-            if (ti1 == 'boundry') {
-                continue
-            }
+            // if (ti1 == 'boundry') {
+            //     continue
+            // }
             if (ti1 == 'boundry' || district[ti0] != district[ti1]) {
                 ctx.lineWidth = 2
                 ctx.strokeStyle = 'white'
             } else {
                 ctx.lineWidth = 1
                 ctx.strokeStyle = 'gray'
-                continue
+                // continue
             }
             for (const [ p1, p2 ] of edge_data.edges) {
                 ctx.beginPath()
