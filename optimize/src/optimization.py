@@ -29,10 +29,6 @@ def optimize(config, save_plots=True):
     if config.feasinfeas_2N:
         config.novelty = True
     feasinfeas = bool(config.feasinfeas) or bool(config.feasinfeas_2N)
-    if feasinfeas:
-        if 'equality' not in config.metrics:
-            print('Warning: equality metric must be included for feasinfeas search. Added it.')
-            config.metrics.append('equality')
     os.makedirs(config.out, exist_ok=False)
     for k, v in vars(config).items():
         if k[0] != '_': print(f'\t{k}: {v}')
@@ -146,5 +142,4 @@ def optimize(config, save_plots=True):
         if not last_phase:
             seeds = upscale(result.X, mapping)
         
-        # print('')
-        # print('Final HV %f'%history[-1])\
+        print('\nFinal HV %f'%history[-1])

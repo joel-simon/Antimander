@@ -234,4 +234,5 @@ def run_optimization(ALG, state, metrics, constraints, seeds, config, n_gens, op
         problem, algorithm, ('n_gen', n_gens),
         seed=0, verbose=False, save_history=False
     )
+    result.F = result.F[:, mask]
     return result, algorithm.history
