@@ -1,7 +1,11 @@
 import os, random, time, json
 import numpy as np
 from functools import partial
-from tqdm import tqdm
+try:
+    get_ipython()
+    from tqdm.notebook import tqdm
+except:
+    from tqdm import tqdm
 from copy import copy
 from pymoo.model.problem import Problem
 from pymoo.model.mutation import Mutation
