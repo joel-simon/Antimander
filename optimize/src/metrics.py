@@ -15,7 +15,6 @@ def bounding_hulls(state, districts, n_districts):
 def compactness_convex_hull(state, districts, n_districts):
     """ Compactness metric: inverse to the sum hull areas. """
     hulls = bounding_hulls(state, districts, n_districts)
-    # print(hulls[0])
     hulls_area = sum( polygon.area([ h ]) for h in hulls )
     return 1.0 - (state.area / hulls_area)
 
@@ -47,3 +46,15 @@ def compactness_reock(state, districts, n_districts):
 #     pp_scores = (4 * math.pi * dist_areas) / (dist_perimeters*dist_perimeters)
 
 #     return 1.0 - pp_scores.mean()
+
+# def inefficiency_gap(state, districts, n_districts):
+#     """ A """
+#     return 1.0 - efficiency_gap(state, districts, n_districts)
+
+def dem_advantage(state, districts, n_districts):
+    lv = np.array(lost_votes(state, districts, n_districts))
+    return lv[:, 1].sum() / state.population # Count rep lost votes.
+    
+def rep_advantage(state, districts, n_districts):
+    lv = np.array(lost_votes(state, districts, n_districts))
+    return lv[:, 0].sum() / state.population # Count dem lost votes.
