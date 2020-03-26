@@ -79,7 +79,7 @@ cpdef float polsby_popper(state, int[:] districts, int n_districts) except *:
 
     cdef float pp_score = 0
     for di in range(n_districts):
-        pp_score += (4 * math.pi * dist_areas[di]) / (dist_perimeters[di]*dist_perimeters[di])
+        pp_score += ((4 * math.pi * dist_areas[di]) / (dist_perimeters[di]*dist_perimeters[di]))
     pp_score /= n_districts
 
     return 1.0 - pp_score

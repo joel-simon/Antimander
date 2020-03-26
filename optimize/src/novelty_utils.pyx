@@ -20,7 +20,24 @@ cdef inline float udist(float[:] a, float[:] b):
     cdef float y = a[1] - b[1]
     return sqrt(x*x + y*y)
 
-cpdef list histogram_features(int[:,:] districts, int n_districts, int bins, float[:,:] tile_centers):
+cpdef float[:,:,:] dist_centers(int[:,:] districts, int n_districts, float[:,:] tile_centers):
+    cdef int i, ti, di
+    cdef int n_districtings = districts.shape[0]
+    cdef int n_tiles = districts.shape[1]
+    cdef float[:,:,:] dcenters = np.zeros([ n_districtings, n_districts, 2 ], dtype='f')
+    cdef float[:] counts = np.zeros(n_districts, dtype='f')
+    for i in range(n_districtings):
+        counts[:] = 0
+        for ti in range(n_tiles):
+            di = districts[i, ti]
+            counts[di] += 1
+        for ti in range(n_tiles):
+            di = districts[i, ti]
+            dcenters[i, di, 0] += tile_centers[ti, 0] / counts[di]
+            dcenters[i, di, 1] += tile_centers[ti, 1] / counts[di]
+    return dcenters
+
+cpdef list centers_histograms(int[:,:] districts, int n_districts, int bins, float[:,:] tile_centers):
     # cdef int[:,:] result = np.zeros((districts.shape[0], bins), dtype='i')
     cdef list result = []
     cdef float[:,:] dcenters = np.zeros([ n_districts, 2 ], dtype='f')
@@ -48,22 +65,20 @@ cpdef list histogram_features(int[:,:] districts, int n_districts, int bins, flo
                 distances.append(udist(dcenters[ti], dcenters[tj]))
 
         # result[i, :] = np.array(np.histogram(distances, bins=bins)[0], dtype='i')
-        print(distances)
+        # print(distances)
         result.append(np.histogram(distances, bins=bins)[0])
 
     return result
 
-cpdef list histogram_features2(
-    int[:, :] districts, int n_districts, int bins,
-    float[:,:] tile_centers,
-    list tile_neighbors
+cpdef list edges_histograms(
+    int[:, :] districts, int n_districts, int bins, int n,
+    float[:,:] tile_centers, list tile_neighbors
 ):
     """ Histogram of distances between tiles within the same district. """
-    cdef int i, j, ti, di, tj, n, n_edge_tiles
+    cdef int i, j, ti, di, tj, n_edge_tiles
     cdef list district_tis
     cdef list result = []
     cdef int n_tiles = districts.shape[1]
-    n = 5000
     cdef float[:] values = np.zeros(n, dtype='f')
     for i in range(districts.shape[0]):
         edge_tiles = []

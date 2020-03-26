@@ -99,6 +99,7 @@ class FI_algo_mixin(object):
                 print("WARNING: Mating could not produce the required number of (unique) offsprings!")
 
         # evaluate the offspring
+        # print('in _next', self.off.shape, self.pop.get("F").shape, self.pop.get("F").sum(axis=0))
         self.evaluator.eval(self.problem, self.off, algorithm=self)
 
         # separate offspring into feasible, infeasible
@@ -136,7 +137,7 @@ class FI_Algo(Algorithm):
         for algo in [self.feas_algo,self.infeas_algo]:
             algo.n_gen = 1
             algo._initialize()
-            algo._each_iteration(algo, first=True)
+            # algo._each_iteration(algo, first=True)
 
         #HACK: should be set in constructor for NSGA2 survival
         #this allows NSGA2 in infeasible pop to do mutliobjective search e.g. constraint-satisfaction + novelty
@@ -146,9 +147,9 @@ class FI_Algo(Algorithm):
         feas_algo = self.feas_algo
         infeas_algo = self.infeas_algo
         #run each algorithm to generate offspring
-        for algo in [self.feas_algo,self.infeas_algo]:
+        for algo in [self.feas_algo, self.infeas_algo]:
             #as long as the population is not empty (i.e. in the beginning of search for feasible pop)
-            if len(algo.pop)>0:   #TODO: instead, try seed to generate random new individuals
+            if len(algo.pop) > 0:   #TODO: instead, try seed to generate random new individuals
                 algo.next()
 
         #aggregate feasible and infeasible offspring
@@ -171,7 +172,7 @@ class FI_Algo(Algorithm):
         infeas_algo.mask_fitness()
 
         #do selection to form new populations
-        if len(feas_algo.pop)>0:   #feasible pop may sometimes have no members (at beginning of search)
+        if len(feas_algo.pop) > 0:   #feasible pop may sometimes have no members (at beginning of search)
             feas_algo.pop = feas_algo.survival.do(feas_algo.problem, feas_algo.pop, feas_algo.pop_size, algorithm=feas_algo)
         infeas_algo.pop = infeas_algo.survival.do(infeas_algo.problem, infeas_algo.pop, infeas_algo.pop_size, algorithm=infeas_algo)
 

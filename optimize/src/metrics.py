@@ -47,14 +47,14 @@ def compactness_reock(state, districts, n_districts):
 
 #     return 1.0 - pp_scores.mean()
 
-# def inefficiency_gap(state, districts, n_districts):
-#     """ A """
-#     return 1.0 - efficiency_gap(state, districts, n_districts)
+def inefficiency_gap(state, districts, n_districts):
+    """ A """
+    return 1.0 - efficiency_gap(state, districts, n_districts)
 
 def dem_advantage(state, districts, n_districts):
     lv = np.array(lost_votes(state, districts, n_districts))
-    return lv[:, 1].sum() / state.population # Count rep lost votes.
+    return lv[:, 0].sum() / state.population # Count dem lost votes.
     
 def rep_advantage(state, districts, n_districts):
     lv = np.array(lost_votes(state, districts, n_districts))
-    return lv[:, 0].sum() / state.population # Count dem lost votes.
+    return lv[:, 1].sum() / state.population # Count rep lost votes.
