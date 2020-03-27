@@ -17,8 +17,8 @@ const sliders_container = document.getElementById('sliders_container')
 const partition_draw_mode = <HTMLInputElement>document.getElementById('partition_draw_mode')
 let chart
 
-canvas_partition.width  = window.innerWidth * 0.5;
-canvas_partition.height = window.innerWidth * 0.5;
+canvas_partition.width  = 400;//window.innerWidth * 0.5;
+canvas_partition.height = 400;//window.innerWidth * 0.5;
 
 const draw_state = {
     ranges:null,
@@ -155,6 +155,7 @@ if (!urlParams.has('run') || !urlParams.has('stage')) {
         const { solutions, values, metrics_data } = data
         data.state = state
         const { n_districts, metrics } = data.config
+        metrics.push('novelty')
         // const colors: string[] = Array(n_districts).fill(0).map(randomColor)
 
         draw_state.ranges = Array(metrics.length).fill(0).map(() => [0, 1])

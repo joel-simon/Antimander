@@ -180,7 +180,7 @@ def opt_callback(algorithm, text, pbar, HV, hypervolume_mask):
 def feasible_seeds(state, config, max_iters=400):
     seeds = []
     n_failures = 0
-    allowed_failures = config.pop_size
+    allowed_failures = 2*config.pop_size
     with tqdm(total=config.pop_size) as pbar:
         while len(seeds) < config.pop_size:
             try:

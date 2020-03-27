@@ -118,7 +118,6 @@ def optimize(config):
     n_gens = config.n_gens // len(states)
 
     # pp_constraints = np.linspace(1.0, config.pp_constraint, len(states))
-    print(feas_mask, infeas_mask)
     for opt_i, (state, mapping) in enumerate(zip(states, mappings)):
         print('-'*80)
         print(f'Optimizing {opt_i} / {len(states)}')
