@@ -47,10 +47,11 @@ def parse(sf):
                 break
 
     neighbors = [ set() for _ in range(len(shapes)) ]
-    for dis_idxs in pnts2tiles.values():
-        for idx1, idx2 in combinations(dis_idxs, 2):
-            neighbors[idx1].add(idx2)
-            neighbors[idx2].add(idx1)
+    for tile_idxs in pnts2tiles.values():
+        for idx1, idx2 in combinations(tile_idxs, 2):
+            if len(set(shapes[idx1].points) & set(shapes[idx2].points)) > 1:
+                neighbors[idx1].add(idx2)
+                neighbors[idx2].add(idx1)
 
     ############################################################################
     """ Merge donut holes - tiles are within another. """
@@ -173,7 +174,7 @@ def WI(shape_path):
 
 
 plot = True
-plot_neighbors = False
+plot_neighbors = True
 save = True
 state_name = 'WI'
 shape_path = sys.argv[1]
@@ -206,5 +207,11 @@ if plot:
     p.set_array(np.array(colors))
     ax.add_collection(LineCollection(edge_list))
     ax.add_collection(p)
+
+    for i, multipolygon in enumerate(state['shapes']):
+        color = state['real_districts'][i] * 10
+        for polygon in multipolygon:
+            ax.plot([v[0] for v in polygon], [v[1] for v in polygon], color='black')
+
     ax.autoscale_view()
     plt.show()
