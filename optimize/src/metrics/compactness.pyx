@@ -94,7 +94,7 @@ def convex_hull(state, districts, n_districts):
     """ Compactness metric: inverse to the sum hull areas. """
     hulls = bounding_hulls(state, districts, n_districts)
     hulls_area = sum_sq( polygon.area([ h ]) for h in hulls )
-    return 1.0 - (state.area * state.area / hulls_area)
+    return 1.0 - hulls_area / (state.area * state.area)
 
 ################################################################################
 
@@ -107,4 +107,4 @@ def reock(state, districts, n_districts):
     """ Compactness metric: inverse to the sum circle areas. """
     circles = bounding_circles(state, districts, n_districts)
     circles_area = sum_sq( pi * c[2]**2 for c in circles )
-    return 1.0 - ( state.area*state.area / circles_area )
+    return .1 * circles_area / (state.area * state.area)

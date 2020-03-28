@@ -42,7 +42,6 @@ class DistrictMutation(Mutation):
         self.pop_min = ideal_pop * (1 - tolerance)
 
     def _do(self, problem, X, **kwargs):
-        t = time.time()
         X = X.copy()
         mutation_rate = 1.0 / self.state.n_tiles
         for i in range(X.shape[0]):
@@ -71,22 +70,21 @@ class DistrictProblem(Problem):
             self.archive = arch(state, self.n_districts, **config.nov_params)
 
     def _evaluate(self, districts, out, *args, **kwargs):
+        state, n_districts, = self.state, self.n_districts
         out['F'] = np.array([
-            [ f(self.state, d, self.n_districts) for f in self.used_metrics ]
+            [ f(state, d, n_districts) for f in self.used_metrics ]
             for d in districts
         ])
         if self.used_constraints:
-            out['G'] = np.array([
-                [ f(self.state, d, self.n_districts) !=0 for f in self.used_constraints ]
-                for d in districts
-            ])
+            out['G'] = np.zeros((districts.shape[0], self.n_constr))
+            for di, d in enumerate(districts):
+                for ci, c in enumerate(self.used_constraints):
+                    out['G'][di, ci] = c(state, d, n_districts, out['F'][di])
+            print(out['G'].sum(axis=0))
         if self.novelty:
-            # novelty_score = np.zeros(len(districts))
             novelty = self.archive.updateAndGetNovelty(districts)
             novelty = 1.0 - novelty
-            # novelty *= out['F'][:, 0] # Multiply novelty by compactness.
             out['F'] = np.append( out['F'], novelty[:, np.newaxis], axis=1 )
-        # print('Evaluate', out['F'].shape, out['F'].sum(axis=0))
         assert not np.isnan(out['F']).any()
         assert out['F'].min() >= 0
         assert out['F'].max() <= 1.0
@@ -151,6 +149,14 @@ def upscale(districts, mapping):
         for j in range(mapping.shape[0]):
             upscaled[i, j] = districts[i, mapping[j]]
     return upscaled
+
+def equality_constraint(state, district, n_districts, values, threshold):
+    """ Return if it violates constraint """ 
+    return metrics.equality(state, district, n_districts) > threshold
+
+def value_constraint(state, district, n_districts, values, index, threshold):
+    """ Return if it violates constraint """ 
+    return values[index] > threshold
 
 def opt_callback(algorithm, text, pbar, HV, hypervolume_mask):
     """ A logging function passed as the 'callback' to the algorithm """

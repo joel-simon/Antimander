@@ -16,13 +16,12 @@ if __name__ == '__main__':
     parser.add_argument('-mst', '--max_start_tiles', type=int, default=200, required=False)
     parser.add_argument('-d', '--n_districts', type=int, default=8, required=False)
     parser.add_argument('-g', '--n_gens', type=int, default=500, required=False, help='The total number of generations across all phases.')
-    # parser.add_argument('-gf', '--n_gens_first', type=int, default=None, required=False)
-    # parser.add_argument('-gl', '--n_gens_last', type=int, default=None, required=False)
     parser.add_argument('-p', '--pop_size', type=int, default=600, required=False)
-    parser.add_argument('-m', '--metrics', nargs='+', required=True)
+    parser.add_argument('-m', '--metrics', nargs='+', required=True) #, help='Enter metrics followed by constraint max. EX: [m1, .5, m2, .7, m3, 1.0]'
     parser.add_argument('-e', '--equality_constraint', default=.05, type=float)
-    parser.add_argument('-nov', '--novelty', action='store_true', help='Use novelty search.')
+    parser.add_argument('-nov', '--novelty', default=False, help='Which novelty metric to use if any.')
     parser.add_argument('--NSGA3', action='store_true')
     parser.add_argument('--dont_fix_seeds', action='store_true')
     args = parser.parse_args()
+    # args.metrics = [(args.metrics[i] float(args.metrics[i+1]) for i in range(0, len(arg.metrics), 2)]
     optimize(args)
