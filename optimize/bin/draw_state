@@ -10,7 +10,7 @@ state = State.fromFile(sys.argv[1])
 pygame.init()
 xmin, ymin, xmax, ymax = state.bbox
 ratio = (xmax-xmin) / (ymax-ymin)
-screen = pygame.display.set_mode(( int(1024*ratio), 1024))
+screen = pygame.display.set_mode(( int(400*ratio), 400))
 screen.fill(( 255, 255, 255 ))
 draw_state(state, screen)
 pygame.display.update()

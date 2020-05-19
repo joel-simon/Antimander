@@ -1,8 +1,6 @@
 import math
 from itertools import combinations
 import numpy as np
-from prince import MCA
-from sklearn.decomposition import PCA
 from pykdtree.kdtree import KDTree
 from src import districts
 from src.novelty_utils import edges_histograms, centers_histograms, dist_centers
@@ -100,8 +98,18 @@ class MutualTilesNoveltyArchive(NoveltyArchive):
         self.use_binary_features = use_binary_features
         self.binary_n = binary_n # How many pairs to use, multiplier of the number of tiles.
         if use_MCA:
+            try:
+                from prince import MCA
+            except ImportError:
+                print('price not imported. Run "pip install prince"')
+                exit()
             self.dim_reduction = MCA( n_components=n_components )
         else:
+            try:
+                from sklearn.decomposition import PCA
+            except ImportError:
+                print('sklearn not imported. Run "pip install sklearn"')
+                exit()
             self.dim_reduction = PCA( n_components=n_components )
 
         seeds = [ districts.make_random(state, n_districts) for _ in range(n_seeds) ]

@@ -85,7 +85,7 @@ def optimize(config):
     if config.equality_constraint > 0:
         used_constraints.append(partial(equality_constraint, threshold=config.equality_constraint))
         if feasinfeas: # FI uses contraints as objectives in infeas population.
-            used_metrics.append(partial(metrics.equality, threshold=0)) # Equality objective does not have a threshold.
+            used_metrics.append(partial(metrics.equality)) # Equality objective does not have a threshold.
             feas_mask.append(False) # Only infeas population considers this.
             infeas_mask.append(True)
     

@@ -1,4 +1,3 @@
-import pyclipper
 import numpy as np
 from scipy.spatial import ConvexHull
 from src.utils import polygon_x
@@ -32,20 +31,6 @@ def centroid(polygons):
     yc = (ymin + ymax) / 2
     return (xc, yc)
 
-# def union(polygons, s=10000):
-#     polygons = [[ (int(x*s), int(y*s)) for x,y in p ] for p in polygons ]
-#     pc = pyclipper.Pyclipper()
-#     pc.AddPaths(polygons, pyclipper.PT_SUBJECT, closed=True)
-#     result = pc.Execute(pyclipper.CT_UNION, pyclipper.PFT_NONZERO, pyclipper.PFT_NONZERO)
-#     return [[ (x/s, y/s)  for x,y in p ] for p in result ]
-
-# def offset(poly, v, s=10000):
-#     poly = [ (int(x*s), int(y*s)) for x,y in poly ]
-#     pco = pyclipper.PyclipperOffset()
-#     pco.AddPath(poly, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
-#     solution = pco.Execute(v)
-#     return [ (x/s, y/s) for x,y in solution[0] ]
-
 def bounding_box(polygons):
     bbox = [ float('inf'), float('inf'), float('-inf'), float('-inf')  ]
     for poly in polygons:
@@ -64,13 +49,6 @@ def convex_hull(polygons):
 
 def pround(polygons):
     return [[(round(x), round(y)) for x,y in poly] for poly in polygons]
-
-# def union_offset(polygons, s=10000, off=5):
-#     """ A temporary hack. Union polygon
-#     """
-#     polygons = [ offset(p, off, s) for p in polygons ]
-#     merged = union(polygons, s)
-#     return [ offset(p, -off, s) for p in merged ]
 
 import time
 from collections import defaultdict, Counter

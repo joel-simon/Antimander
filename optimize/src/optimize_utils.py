@@ -80,7 +80,6 @@ class DistrictProblem(Problem):
             for di, d in enumerate(districts):
                 for ci, c in enumerate(self.used_constraints):
                     out['G'][di, ci] = c(state, d, n_districts, out['F'][di])
-            print(out['G'].sum(axis=0))
         if self.novelty:
             novelty = self.archive.updateAndGetNovelty(districts)
             novelty = 1.0 - novelty
