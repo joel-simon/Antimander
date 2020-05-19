@@ -1,5 +1,5 @@
-# Antimander
-## Multi-Objective Optimization For Congressional Districts 🗺️👩‍💻🇺🇸
+# Antimander - [antimander.org](https://antimander.org/)
+## Multi-Objective Optimization of Congressional Districts 🗺️👩‍💻🇺🇸
 
 [Discord](https://discord.gg/UmgaE74)
 
@@ -20,14 +20,14 @@ python setup.py build_ext -i
 ## Use Antimander via the scripts in /bin
 
 ### ./bin/sp2statefile
-Converts a shapefile from the [mggg states repo](https://github.com/mggg-states/) to the Antimander state json format that incudes adjacency info. 
+Converts a shapefile from the [mggg states repo](https://github.com/mggg-states/) to the Antimander state json format that incudes adjacency info. Currenlty only supports Wisconsin and North Carolina but is simple to add others.
 
 Example
 ```
 ./bin/shp2statefile --save -n WI -s ~/Downloads/WI_wards_12_16/WI_ltsb_corrected_final.shp
 ./bin/shp2statefile --save -n NC -s ~/Downloads/NC_VTD/NC_VTD.shp
 ```
-This can take a few minutes and you there a pre-computed ones are available on google drive.
+This can take a few minutes and there a pre-computed files available on google drive.
 ```
 pip install gdown 
 // WI.json.zip (Wisconsin)
@@ -44,7 +44,9 @@ Draws a state json file to the window and saves it as a png.
 ![North Carolina Map](img/NC.png "North Carolina Map")
 
 ### ./bin/make_test_state
-Create a fake test test state on a Voronoi grid. The number of cities and tiles is parameterized and the total populations for each party are normalized to be equal. This is useful for faster testing. The main dependency Pyvoro is known to cause issues sometimes.
+Create a fake test state on a Voronoi grid. The number of cities and tiles is parameterized and the total populations for each party are normalized to be equal. This is useful for faster testing.
+
+This requires manually installing pyvoro from the [python3 branch](https://github.com/joe-jordan/pyvoro/tree/feature/python3).
 
 Example
 ```
@@ -57,14 +59,23 @@ And you should see
 
 
 ### ./bin/optimize
-The main script that runs the optimization. "./bin/optimize --help" for full options.
-Example: Optimizes with three metrics, "centers" novelty method and feasible-infeasible search:
+The main script that runs the optimization. See "./bin/optimize --help" for full options.
+Example: This command optimizes for three metrics and uses the "centers" novelty method and feasible-infeasible search:
 ```
 ./bin/optimize -i ./data/t2000_c2.json -o ../view/data/test_out -g 2000 -p 400 \
     --metrics polsby_popper efficiency_gap competitiveness \
     --novelty centers --feasinfeas
 ```
-This will create an output directory and put a lot of output files and hypervolume plots there. If you output it to the viewer directory you can then interact with via the web viewer. For real states more generations and larger population size are suggested. ~600 pop and ~5000 gens are good but depends on the state and number of metrics. 
+This will create an output directory with a lot of output files and hypervolume plots. If you output it to the viewer directory you can then interact with via the web viewer. For real world states more generations and larger population size is suggested. ~600 pop and ~5000 gens are good but it depends on the specific state and the number of metrics. 
+
+All metric implementations are in the optimize/src/metrics directory. Current ones are:
+* convex_hull
+* equality
+* polsby_popper
+* competitiveness
+* efficiency_gap
+* reock
+* center_distance
 
 ## Web Viewer
 Requires node.js
