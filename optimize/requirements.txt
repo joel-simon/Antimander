@@ -1,6 +1,6 @@
 Cython==0.29.18
 matplotlib==3.2.1
-numpy==1.18.4
+numpy==1.22.0
 opencv-python==4.2.0.34
 pygame==1.9.6
 pymoo==0.4.1
